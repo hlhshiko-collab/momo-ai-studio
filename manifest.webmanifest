@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "AI Studio · 墨墨 API",
+  "short_name": "AI Studio",
+  "description": "个人使用的墨墨 API 文字聊天与 Gemini/Nano Banana 图片生成工具",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080d19",
+  "theme_color": "#0b1222",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
