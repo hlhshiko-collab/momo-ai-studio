@@ -17,7 +17,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 button{border:0;border-radius:12px;padding:11px 15px;background:linear-gradient(135deg,var(--accent),#6c6cf5);color:white;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 5px 16px #5145b830;transition:transform .12s,filter .12s}button:active{transform:scale(.98)}
 button.secondary{background:#1a2741;border:1px solid #354463;box-shadow:none}button:disabled{opacity:.55;cursor:wait}
 .status{color:var(--muted);font-size:12px;overflow-wrap:anywhere;flex:1;min-width:160px}
-.chat{flex:1;min-height:350px;display:flex;flex-direction:column;gap:12px}.messages{display:flex;flex-direction:column;gap:12px;flex:1}
+.chat{flex:1;min-height:350px;display:flex;flex-direction:column;gap:12px}.messages{display:flex;flex-direction:column;gap:12px;flex:1;align-items:stretch}.image-result{width:100%;max-width:760px;align-self:flex-start;background:#19243b;border:1px solid var(--border);border-radius:12px;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:8px}
 .welcome{margin:auto;text-align:center;color:var(--muted);padding:30px 12px}.welcome strong{display:block;color:var(--text);font-size:20px;margin-bottom:8px}
 .msg{max-width:92%;padding:13px 15px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 4px 14px #00000012}.msg.user{align-self:flex-end;background:linear-gradient(135deg,#6253d8,#5145b8);border-bottom-right-radius:5px}.msg.assistant{align-self:flex-start;background:#19243b;border:1px solid var(--border);border-bottom-left-radius:5px}
 .role{font-size:11px;color:#c3cce3;margin-bottom:5px;font-weight:700}
@@ -51,7 +51,6 @@ button.secondary{background:#1a2741;border:1px solid #354463;box-shadow:none}but
 </div>
 </section>
 <section class="panel chat"><div class="section-title">对话与生成结果</div><div class="messages" id="messages"><div class="welcome"><strong>你好，需要我帮你做什么？</strong>获取模型列表并选择模型后即可开始聊天。</div></div>
-<div id="imageResults" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px"></div>
 <form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
 <div class="note" id="saveNote">设置保存在此网站的浏览器存储中。API Key 默认不保存；只有开启“记住 API Key”才会保存在本机浏览器。请勿在公共设备使用。浏览器跨域请求是否可用取决于服务商的 CORS 设置。</div></section>
 </main>
@@ -71,6 +70,7 @@ function saveSettings(){
  CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el)cfg[id]=el.value});
  // 保留按协议分别记住的模型选择，避免切换模式后覆盖其他模式的模型偏好。
  cfg.modelsByMode=previous.modelsByMode||{};
+ cfg.modelListsByMode=previous.modelListsByMode||{};
  cfg.rememberKey=$('rememberKey').checked;
  cfg.apiKey=cfg.rememberKey?$('apiKey').value:'';
  const ok=safeStoreSet(SAVE_KEY,JSON.stringify(cfg));
@@ -111,6 +111,8 @@ function restoreHistory(){
 restoreSettings();
 restoreHistory();
 CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el)el.addEventListener('change',saveSettings);if(el&&['baseUrl','manualModel','temperature','maxTokens','systemPrompt'].includes(id))el.addEventListener('input',saveSettings)});
+$('modelSelect').addEventListener('change',()=>rememberModelForMode());
+$('manualModel').addEventListener('input',()=>rememberModelForMode());
 $('rememberKey').addEventListener('change',saveSettings);
 $('apiKey').addEventListener('input',saveSettings);
 
@@ -164,44 +166,9 @@ function selectedModel(){
  const manual=$('manualModel').value.trim();
  return manual||$('modelSelect').value.trim();
 }
-$('modelsBtn').onclick=async()=>{
- try{
-  $('modelsBtn').disabled=true;
-  const mode=$('apiMode').value;
-  const isGemini=(mode==='v1beta'||mode==='v1');
-  const url=isGemini?originBase()+'/v1beta/models':base()+'/models';
-  status('正在读取模型列表：GET '+url);
-  const res=await apiFetch(url,{method:'GET',headers:{'Authorization':'Bearer '+$('apiKey').value.trim(),'Accept':'application/json'}});
-  const data=await res.json();
-  // OpenAI 格式：data[].id；Gemini 原生格式：models[].name（通常形如 models/gemini-pro）。
-  const models=isGemini
-   ? (Array.isArray(data.models)?data.models:[])
-   : (Array.isArray(data.data)?data.data:(Array.isArray(data.models)?data.models:(Array.isArray(data)?data:[])));
-  const ids=models.map(m=>typeof m==='string'?m:(isGemini?(m?.name||m?.id):(m?.id||m?.name)))
-    .filter(id=>typeof id==='string'&&id.trim());
-  const unique=[...new Set(ids)];
-  state.modelIds=unique;
-  const sel=$('modelSelect');sel.replaceChildren();
-  if(!unique.length){
-   sel.add(new Option('接口返回成功，但未找到模型 ID',''));
-   status('接口请求成功，但没有识别到模型 ID。请检查返回格式或服务商是否开放该模型列表接口。');
-   return;
-  }
-  sel.add(new Option('请选择模型…',''));
-  unique.forEach(id=>sel.add(new Option(id,id)));
-  const saved=readSavedSettings().modelsByMode?.[mode];
-  $('manualModel').value='';
-  if(saved?.manual && saved.id){
-   $('manualModel').value=saved.id;
-   sel.value=unique.includes(saved.id)?saved.id:'';
-  }else{
-   sel.value=(saved?.id&&unique.includes(saved.id))?saved.id:unique[0];
-  }
-  rememberModelForMode(mode);
-  saveSettings();
-  status(`获取成功：${url} 返回 ${unique.length} 个模型。当前选择：${selectedModel()||'请选择模型'}`);
- }catch(e){status('获取模型失败：'+e.message)}
- finally{$('modelsBtn').disabled=false}
+function modelListUrl(mode=$('apiMode').value){
+ const isGemini=(mode==='v1beta'||mode==='v1');
+ return isGemini?originBase()+'/v1beta/models':base()+'/models';
 }
 function readSavedSettings(){
  try{return JSON.parse(safeStoreGet(SAVE_KEY)||'{}')}catch(e){return {}}
@@ -213,16 +180,72 @@ function rememberModelForMode(mode=$('apiMode').value){
  if(id)cfg.modelsByMode[mode]={id,manual:!!manual};
  safeStoreSet(SAVE_KEY,JSON.stringify(cfg));
 }
-$('modelSelect').addEventListener('change',()=>{
- if($('modelSelect').value)$('manualModel').value='';
- rememberModelForMode();
- saveSettings();
- status('当前选择模型：'+($('modelSelect').value||'未选择'));
-});
-$('manualModel').addEventListener('input',()=>{
- rememberModelForMode();
- if($('manualModel').value.trim())status('将优先使用手动模型 ID：'+$('manualModel').value.trim());
-});
+function populateModelOptions(mode, ids){
+ const sel=$('modelSelect');
+ const saved=readSavedSettings().modelsByMode?.[mode];
+ sel.replaceChildren();
+ if(!Array.isArray(ids)||!ids.length){
+  sel.add(new Option('该模式暂无可用模型列表',''));
+  state.modelIds=[];
+  $('manualModel').value=saved?.manual&&saved.id?saved.id:'';
+  return false;
+ }
+ state.modelIds=ids.slice();
+ sel.add(new Option('请选择模型…',''));
+ ids.forEach(id=>sel.add(new Option(id,id)));
+ $('manualModel').value=saved?.manual&&saved.id?saved.id:'';
+ if(saved?.manual&&saved.id){sel.value=ids.includes(saved.id)?saved.id:'';}
+ else sel.value=(saved?.id&&ids.includes(saved.id))?saved.id:ids[0];
+ rememberModelForMode(mode);
+ return true;
+}
+async function fetchModelList({quiet=false}={}){
+ const btn=$('modelsBtn');
+ try{
+  btn.disabled=true;
+  const mode=$('apiMode').value;
+  const key=$('apiKey').value.trim();
+  if(!key)throw new Error('请先填写 API Key');
+  const url=modelListUrl(mode);
+  if(!quiet)status('正在读取模型列表：GET '+url);
+  const res=await apiFetch(url,{method:'GET',headers:{'Authorization':'Bearer '+key,'Accept':'application/json'}});
+  const data=await res.json();
+  const isGemini=(mode==='v1beta'||mode==='v1');
+  const models=isGemini?(Array.isArray(data.models)?data.models:[]):(Array.isArray(data.data)?data.data:(Array.isArray(data.models)?data.models:(Array.isArray(data)?data:[])));
+  const ids=models.map(m=>typeof m==='string'?m:(isGemini?(m?.name||m?.id):(m?.id||m?.name))).filter(id=>typeof id==='string'&&id.trim());
+  const unique=[...new Set(ids)];
+  if(!unique.length){
+   $('modelSelect').replaceChildren(new Option('接口未返回可识别的模型 ID',''));
+   state.modelIds=[];
+   status('接口请求成功，但没有识别到模型 ID。请检查返回格式或服务商是否开放该模型列表接口。');
+   return false;
+  }
+  const cfg=readSavedSettings();cfg.modelListsByMode=cfg.modelListsByMode||{};
+  cfg.modelListsByMode[mode]={url,ids:unique,fetchedAt:Date.now()};
+  safeStoreSet(SAVE_KEY,JSON.stringify(cfg));
+  populateModelOptions(mode,unique);saveSettings();
+  status((quiet?'已自动恢复':'获取成功')+'：'+unique.length+' 个模型。当前选择：'+(selectedModel()||'请选择模型'));
+  return true;
+ }catch(e){
+  status((quiet?'自动获取模型失败':'获取模型失败')+'：'+e.message+'。也可以手动填写模型 ID，或点击“获取当前模式模型列表”重试。');
+  return false;
+ }finally{btn.disabled=false}
+}
+$('modelsBtn').onclick=()=>fetchModelList();
+function activateModeModels(mode,{autoFetch=true,quiet=false}={}){
+ let url;
+ try{url=modelListUrl(mode)}catch(e){$('modelSelect').replaceChildren(new Option('请先填写 API Base URL',''));if(!quiet)status('请先填写 API Base URL。');return;}
+ const cfg=readSavedSettings();const cached=cfg.modelListsByMode?.[mode];
+ if(cached&&cached.url===url&&Array.isArray(cached.ids)&&cached.ids.length){
+  populateModelOptions(mode,cached.ids);
+  if(!quiet)status('已恢复 '+cached.ids.length+' 个缓存模型，无需重新获取。当前选择：'+(selectedModel()||'请选择模型'));
+  saveSettings();return;
+ }
+ $('modelSelect').replaceChildren(new Option('该模式没有缓存，正在准备获取模型…',''));
+ const saved=cfg.modelsByMode?.[mode];$('manualModel').value=saved?.manual&&saved.id?saved.id:'';
+ if(autoFetch&&$('apiKey').value.trim())fetchModelList({quiet});
+ else if(!quiet)status('该模式暂时没有缓存模型。填写 API Key 后可自动获取，或点击“获取当前模式模型列表”。');
+}
 $('testBtn').onclick=async()=>{
  try{
   const mode=$('apiMode').value, isGemini=(mode==='v1beta'||mode==='v1');
@@ -236,8 +259,7 @@ $('testBtn').onclick=async()=>{
 };
 
 function addImageResult(src, label='生成的图片'){
- const box=document.createElement('div');
- box.style.cssText='background:#19243b;border:1px solid var(--border);border-radius:12px;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:8px';
+ const box=document.createElement('div');box.className='image-result';
  const img=document.createElement('img');img.src=src;img.alt=label;
  img.style.cssText='display:block;width:100%;height:auto;border-radius:8px;background:#0b1325';
  const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;align-items:center;justify-content:space-between';
@@ -251,7 +273,8 @@ function addImageResult(src, label='生成的图片'){
   if(!src.startsWith('data:')){window.open(src,'_blank','noopener');return;}
   document.body.appendChild(a);a.click();a.remove();
  });
- actions.append(caption,btn);box.append(img,actions);$('imageResults').prepend(box);
+ actions.append(caption,btn);box.append(img,actions);$('messages').append(box);
+ box.scrollIntoView({behavior:'smooth',block:'end'});
 }
 function errorText(data, fallback='接口返回错误'){
  return data?.error?.message||data?.error?.details?.[0]?.message||data?.message||data?.detail||fallback;
@@ -283,16 +306,15 @@ async function generateImage(prompt, model){
   }
  }else{
   const parts=(data?.candidates||[]).flatMap(c=>c?.content?.parts||[]);
-  const texts=[];
+  let imageIndex=0;
   for(const part of parts){
    const inline=part.inlineData||part.inline_data;
    if(inline?.data){
     const mime=inline.mimeType||inline.mime_type||'image/png';
-    addImageResult('data:'+mime+';base64,'+inline.data);count++;
+    imageIndex++;addImageResult('data:'+mime+';base64,'+inline.data,'生成的图片 '+imageIndex);count++;
    }
-   if(typeof part.text==='string')texts.push(part.text);
+   if(typeof part.text==='string'&&part.text.trim())addMessage('assistant',part.text);
   }
-  if(texts.length)addMessage('assistant',texts.join('\\n'));
  }
  if(!count)throw new Error(errorText(data,'请求成功，但响应中没有找到图片数据。')+'。请确认模型支持当前接口路径和图片输出；可切换 /v1beta 与 /v1 路径分别测试。');
  status('图片生成成功：'+model+'，收到 '+count+' 张图片。');
@@ -346,7 +368,7 @@ $('chatForm').addEventListener('submit',async e=>{
  }catch(err){answerEl.textContent='调用失败：'+err.message;status('调用失败：'+err.message)}
  finally{$('sendBtn').disabled=false;$('prompt').focus()}
 });
-$('clearBtn').onclick=()=>{state.messages=[];try{localStorage.removeItem(CHAT_KEY)}catch(e){};$('messages').replaceChildren();$('imageResults').replaceChildren();const w=document.createElement('div');w.className='welcome';const s=document.createElement('strong');s.textContent='对话已清空';w.append(s,document.createTextNode('可以开始新的对话。'));$('messages').append(w);status('对话历史已清空。')};
+$('clearBtn').onclick=()=>{state.messages=[];try{localStorage.removeItem(CHAT_KEY)}catch(e){};$('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const s=document.createElement('strong');s.textContent='对话已清空';w.append(s,document.createTextNode('可以开始新的对话。'));$('messages').append(w);status('对话历史已清空。')};
 
 
 // 对 content://downloads/... 这种本地打开方式，提供独立的 JSON 备份/恢复，不依赖浏览器存储是否保留。
@@ -395,18 +417,16 @@ $('importSettingsFile').addEventListener('change',async()=>{
 });
 
 $('apiMode').addEventListener('change',()=>{
- const mode=$('apiMode').value;
- // 模式改变时清掉上个协议遗留的 UI 选择，模型偏好仍按协议分别保存在本机。
- $('modelSelect').replaceChildren(new Option('请获取当前模式模型列表',''));
- $('manualModel').value='';
- saveSettings();
+ const mode=$('apiMode').value;saveSettings();
  if(mode==='chat')status('文字聊天：POST '+base()+'/chat/completions；模型列表：GET '+base()+'/models');
  else if(mode==='images')status('OpenAI 图片接口：POST '+base()+'/images/generations。New API 文档参数主要对应 DALL·E / GPT Image，不建议用来调用 Nano Banana。');
  else status('Gemini 图片生成：POST '+originBase()+'/'+mode+'/models/{model}:generateContent；Gemini 模型列表使用 GET '+originBase()+'/v1beta/models。');
+ activateModeModels(mode,{autoFetch:true,quiet:false});
 });
 
 $('prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('chatForm').requestSubmit()}});
-if(safeStoreGet(SAVE_KEY))status('已恢复上次设置。选择模式后获取模型列表即可继续使用。');else status('首次使用：填写 API 地址和 Key，选择模式后获取模型列表。');
+if(safeStoreGet(SAVE_KEY))status('已恢复上次设置。模型列表已缓存时会自动显示；切换模式无需重复手动获取。');else status('首次使用：填写 API 地址和 Key，再获取一次模型列表；之后会自动缓存。');
+activateModeModels($('apiMode').value,{autoFetch:!!$('apiKey').value.trim(),quiet:true});
 </script><script>
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   window.addEventListener('load', () => {
