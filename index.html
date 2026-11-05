@@ -131,7 +131,7 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 @media(max-width:620px){.key-usage-head button{padding:8px 10px}.key-usage-cell strong{font-size:14px}}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">功能更新 v9</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">功能更新 v10</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -648,16 +648,24 @@ async function queryKeyUsage(){
  button.disabled=true;button.textContent='查询中…';$('keyUsageResult').textContent='正在查询当前 Key 的额度…';
  try{
   const root=originBase(),auth={'Authorization':'Bearer '+key,'Accept':'application/json'};
-  const [usageRes,statusRes]=await Promise.all([
-   fetch(root+'/api/usage/token/',{method:'GET',headers:auth,cache:'no-store'}),
-   fetch(root+'/api/status',{method:'GET',headers:{'Accept':'application/json'},cache:'no-store'})
-  ]);
+  // 先独立查询 Key 用量；公开状态接口失败不应连带丢弃已成功的额度结果。
+  let usageRes;
+  try{
+   usageRes=await fetch(root+'/api/usage/token/',{method:'GET',headers:auth,cache:'no-store'});
+  }catch(networkError){
+   throw new Error('额度接口无法从当前网页访问。浏览器报告 Failed to fetch，通常是服务商 CORS/OPTIONS 预检未放行，或接口网络不可达。请服务商允许来源 https://hlhshiko-collab.github.io，并允许 GET、OPTIONS 及 Authorization、Accept 请求头。原始错误：'+(networkError.message||'Failed to fetch'));
+  }
   let usageBody;try{usageBody=await usageRes.json()}catch(e){usageBody={message:'服务商返回了无法识别的数据'};}
   if(!usageRes.ok||usageBody.code!==true||!usageBody.data){
    const msg=usageBody?.message||usageBody?.error?.message||('HTTP '+usageRes.status);
    throw new Error(msg);
   }
-  let statusBody={};if(statusRes.ok){try{statusBody=await statusRes.json()}catch(e){}}
+  // 货币展示设置为辅助信息；即使 /api/status 不可访问，也展示原始额度点数。
+  let statusBody={};
+  try{
+   const statusRes=await fetch(root+'/api/status',{method:'GET',headers:{'Accept':'application/json'},cache:'no-store'});
+   if(statusRes.ok)statusBody=await statusRes.json();
+  }catch(e){console.warn('无法读取额度展示设置，将显示原始额度点数。',e)}
   renderKeyUsage(usageBody.data,statusBody?.data||{});
   status('Key 用量查询成功：'+(usageBody.data.name||'当前 Key'));
  }catch(err){
