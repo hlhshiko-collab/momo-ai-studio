@@ -403,28 +403,27 @@ function clearPendingFiles(){state.pendingFiles=[];renderPendingImages()}
 $('fileBtn').addEventListener('click',()=>$('documentFiles').click());
 $('documentFiles').addEventListener('change',async()=>{
  const files=Array.from($('documentFiles').files||[]);$('documentFiles').value='';
- let added=0;
+ let added=0,totalBytes=state.pendingFiles.reduce((sum,item)=>sum+item.size,0);
  for(const file of files){
   if(state.pendingFiles.length>=4){status('最多添加 4 个文件');break}
   if(file.size>10*1024*1024){status('单个文件不能超过 10MB：'+file.name);continue}
+  if(totalBytes+file.size>14*1024*1024){status('附件总大小不能超过 14MB，已跳过：'+file.name);continue}
   const ext=fileExt(file.name);
   if(file.type==='application/pdf'||ext==='pdf'){
    try{
     const dataUrl=await fileToDataUrl(file);
-    state.pendingFiles.push({kind:'pdf',name:file.name,mimeType:'application/pdf',dataUrl,base64:dataUrl.split(',')[1]||'',size:file.size});added++;
+    state.pendingFiles.push({kind:'pdf',name:file.name,mimeType:'application/pdf',dataUrl,base64:dataUrl.split(',')[1]||'',size:file.size});totalBytes+=file.size;added++;
    }catch(e){status('读取 PDF 失败：'+e.message)}
   }else if(file.type.startsWith('text/')||TEXT_FILE_EXTS.has(ext)){
    if(file.size>1024*1024){status('文本文件建议不超过 1MB：'+file.name);continue}
    try{
     const content=await file.text();
-    state.pendingFiles.push({kind:'text',name:file.name,text:content,size:file.size});added++;
+    state.pendingFiles.push({kind:'text',name:file.name,text:content,size:file.size});totalBytes+=file.size;added++;
    }catch(e){status('读取文本文件失败：'+e.message)}
   }else{
    status('暂不支持该文件类型：'+file.name+'。请使用 PDF、TXT、MD、CSV、JSON 或文本/代码文件。');
   }
  }
- const total=state.pendingFiles.reduce((sum,item)=>sum+item.size,0);
- if(total>14*1024*1024){state.pendingFiles.splice(0,state.pendingFiles.length-1);status('附件总大小不能超过 14MB，请减少文件数量。')}
  renderPendingImages();
  if(added){
   if(!['v1beta','v1'].includes($('apiMode').value)){
