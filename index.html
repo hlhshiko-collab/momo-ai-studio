@@ -22,6 +22,16 @@ button.secondary{background:#f5f7fb;color:#34415b;border:1px solid var(--border)
 .msg{max-width:92%;padding:13px 15px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 4px 14px #00000012}.msg.user{align-self:flex-end;background:linear-gradient(135deg,#6253d8,#5145b8);border-bottom-right-radius:5px}.msg.assistant{align-self:flex-start;background:#f7f8fc;border:1px solid var(--border);border-bottom-left-radius:5px}
 .role{font-size:11px;color:#c3cce3;margin-bottom:5px;font-weight:700}
 .composer{display:flex;gap:9px;align-items:flex-end;position:sticky;bottom:0;padding-top:8px;background:linear-gradient(180deg,transparent,#111a2c 18%)}.composer textarea{resize:vertical;min-height:50px;max-height:180px}.composer button{height:50px;min-width:82px}.attach-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}.attach-row input{display:none}.attach-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.attach-thumb{position:relative;width:76px;height:76px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f4f6fa}.attach-thumb img{width:100%;height:100%;object-fit:cover}.attach-thumb button{position:absolute;right:3px;top:3px;padding:2px 6px;min-width:0;height:auto;border-radius:20px;background:#202638dd;font-size:12px}
+.file-chip{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:11px;background:#f7f8fc;font-size:12px;color:#34415b;max-width:100%}
+.file-chip-icon{font-size:18px}.file-chip-name{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-chip-size{color:var(--muted);white-space:nowrap}.file-chip button{padding:1px 6px;min-width:0;background:#e9edf5;color:#4b5870;box-shadow:none}
+.request-progress{width:100%;max-width:760px;align-self:flex-start;border:1px solid var(--border);border-radius:13px;padding:11px 13px;background:#fbfcff;display:flex;flex-direction:column;gap:7px}
+.progress-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;color:#35415b}
+.progress-detail,.progress-time{font-size:11px;color:var(--muted)}
+.progress-rail{height:5px;background:#e8edf6;border-radius:9px;overflow:hidden}
+.progress-bar{height:100%;width:34%;border-radius:9px;background:linear-gradient(90deg,#6b83df,#9daef1);animation:progress-slide 1.25s ease-in-out infinite alternate}
+.request-progress.done .progress-bar{width:100%;animation:none;background:#36a477}
+.request-progress.failed .progress-bar{width:100%;animation:none;background:#d16a6a}
+@keyframes progress-slide{from{transform:translateX(-38%)}to{transform:translateX(190%)}}
 .hint{font-size:12px;color:var(--muted);margin-top:5px}.remember-row{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin-top:3px}.remember-row input{width:16px;height:16px;accent-color:var(--accent);padding:0}.backup-actions{padding-top:10px;border-top:1px solid var(--border)}.backup-actions .hint{flex-basis:100%;margin-top:0}
 @media(max-width:620px){.app{padding:10px;gap:11px}header{align-items:flex-start}.brandicon{width:38px;height:38px;border-radius:12px}.brandline{gap:9px}h1{font-size:22px}.panel{padding:12px;border-radius:17px}.settings{grid-template-columns:1fr 1fr;gap:9px}.wide{grid-column:1/-1}.msg{max-width:98%}.composer{gap:7px}.composer button{min-width:68px;padding:8px}.actions button{flex:1}.status{flex-basis:100%;min-width:0}.chat{min-height:48vh}}
 
@@ -73,6 +83,10 @@ button.secondary{background:#f5f7fb;color:#34415b;border:1px solid var(--border)
  .composer button{min-width:66px;height:54px}
  .attach-row{align-items:flex-start}
  .attach-row .hint{flex:1;min-width:100%;margin-top:0}
+.file-chip-name{max-width:145px}
+.progress-head{align-items:flex-start}
+.request-progress{padding:10px 11px}
+
  .msg{max-width:100%}
 }
 </style></head>
@@ -106,12 +120,16 @@ button.secondary{background:#f5f7fb;color:#34415b;border:1px solid var(--border)
 </details>
 </section>
 <section class="panel chat"><div class="section-title">对话与生成结果</div><div class="messages" id="messages"><div class="welcome"><strong>你好，需要我帮你做什么？</strong>获取模型列表并选择模型后即可开始聊天。</div></div>
-<div class="attach-row"><button class="secondary attach-main" id="attachBtn" type="button">＋ 上传要修改的图片</button><input id="imageFiles" type="file" accept="image/*" multiple hidden><span class="hint">选图后自动切换 Gemini；支持最多 4 张图片，每张不超过 10MB。</span></div><div class="attach-preview" id="attachPreview"></div><form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
+<div class="attach-row">
+<button class="secondary attach-main" id="attachBtn" type="button">＋ 上传图片</button><input id="imageFiles" type="file" accept="image/*" multiple hidden>
+<button class="secondary file-main" id="fileBtn" type="button">＋ 上传文件</button><input id="documentFiles" type="file" accept=".pdf,.txt,.md,.csv,.json,.xml,.html,.log,.yaml,.yml,.js,.ts,.tsx,.jsx,.py,.java,.c,.cpp,.h,.css,.sql,.sh,.toml,.ini,text/*,application/pdf" multiple hidden>
+<span class="hint">图片用于修改；PDF 和文本文件可让 AI 阅读分析。</span>
+</div><div class="attach-preview" id="attachPreview"></div><form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
 <div class="note" id="saveNote">设置保存在此网站的浏览器存储中。API Key 默认不保存；只有开启“记住 API Key”才会保存在本机浏览器。请勿在公共设备使用。浏览器跨域请求是否可用取决于服务商的 CORS 设置。</div></section>
 </main>
 <script>
 const $=id=>document.getElementById(id);
-const state={messages:[],modelIds:[],pendingImages:[]};
+const state={messages:[],modelIds:[],pendingImages:[],pendingFiles:[]};
 
 // 自动保存页面设置和最近对话；API Key 默认不保存，勾选后才写入本机浏览器存储。
 const SAVE_KEY='momo_api_chat_v5_settings';
@@ -354,6 +372,66 @@ $('imageFiles').addEventListener('change',async()=>{
  }
 });
 function clearPendingImages(){state.pendingImages=[];renderPendingImages()}
+const TEXT_FILE_EXTS=new Set(['txt','md','csv','json','xml','html','log','yaml','yml','js','ts','tsx','jsx','py','java','c','cpp','h','css','sql','sh','toml','ini']);
+function formatFileSize(bytes){return bytes<1024*1024?(bytes/1024).toFixed(0)+' KB':(bytes/1024/1024).toFixed(1)+' MB'}
+function fileExt(name){return (name.split('.').pop()||'').toLowerCase()}
+function renderPendingImages(){
+ const box=$('attachPreview');box.replaceChildren();
+ if(state.pendingImages.length){const label=document.createElement('div');label.className='attach-caption';label.textContent='本次修改使用的图片（'+state.pendingImages.length+'/4）';box.append(label)}
+ state.pendingImages.forEach((item,index)=>{
+  const wrap=document.createElement('div');wrap.className='attach-thumb';
+  const img=document.createElement('img');img.src=item.dataUrl;img.alt=item.name;
+  const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.setAttribute('aria-label','移除图片');
+  remove.onclick=()=>{state.pendingImages.splice(index,1);renderPendingImages()};
+  const name=document.createElement('span');name.className='attach-name';name.textContent=item.name;
+  wrap.append(img,remove,name);box.append(wrap);
+ });
+ if(state.pendingFiles.length){
+  const label=document.createElement('div');label.className='attach-caption';label.textContent='本次提问附带的文件（'+state.pendingFiles.length+'/4）';box.append(label);
+  state.pendingFiles.forEach((item,index)=>{
+   const chip=document.createElement('div');chip.className='file-chip';
+   const ico=document.createElement('span');ico.className='file-chip-icon';ico.textContent=item.kind==='pdf'?'📕':'📄';
+   const name=document.createElement('span');name.className='file-chip-name';name.textContent=item.name;name.title=item.name;
+   const size=document.createElement('span');size.className='file-chip-size';size.textContent=formatFileSize(item.size);
+   const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.setAttribute('aria-label','移除文件');
+   remove.onclick=()=>{state.pendingFiles.splice(index,1);renderPendingImages()};
+   chip.append(ico,name,size,remove);box.append(chip);
+  });
+ }
+}
+function clearPendingFiles(){state.pendingFiles=[];renderPendingImages()}
+$('fileBtn').addEventListener('click',()=>$('documentFiles').click());
+$('documentFiles').addEventListener('change',async()=>{
+ const files=Array.from($('documentFiles').files||[]);$('documentFiles').value='';
+ let added=0;
+ for(const file of files){
+  if(state.pendingFiles.length>=4){status('最多添加 4 个文件');break}
+  if(file.size>10*1024*1024){status('单个文件不能超过 10MB：'+file.name);continue}
+  const ext=fileExt(file.name);
+  if(file.type==='application/pdf'||ext==='pdf'){
+   try{
+    const dataUrl=await fileToDataUrl(file);
+    state.pendingFiles.push({kind:'pdf',name:file.name,mimeType:'application/pdf',dataUrl,base64:dataUrl.split(',')[1]||'',size:file.size});added++;
+   }catch(e){status('读取 PDF 失败：'+e.message)}
+  }else if(file.type.startsWith('text/')||TEXT_FILE_EXTS.has(ext)){
+   if(file.size>1024*1024){status('文本文件建议不超过 1MB：'+file.name);continue}
+   try{
+    const content=await file.text();
+    state.pendingFiles.push({kind:'text',name:file.name,text:content,size:file.size});added++;
+   }catch(e){status('读取文本文件失败：'+e.message)}
+  }else{
+   status('暂不支持该文件类型：'+file.name+'。请使用 PDF、TXT、MD、CSV、JSON 或文本/代码文件。');
+  }
+ }
+ const total=state.pendingFiles.reduce((sum,item)=>sum+item.size,0);
+ if(total>14*1024*1024){state.pendingFiles.splice(0,state.pendingFiles.length-1);status('附件总大小不能超过 14MB，请减少文件数量。')}
+ renderPendingImages();
+ if(added){
+  if(!['v1beta','v1'].includes($('apiMode').value)){
+   $('apiMode').value='v1beta';$('apiMode').dispatchEvent(new Event('change',{bubbles:true}));
+  }else status('已添加文件。输入问题后发送，AI 会读取文件内容。');
+ }
+});
 function addImageResult(src, label='生成的图片'){
  const box=document.createElement('div');box.className='image-result';
  const img=document.createElement('img');img.src=src;img.alt=label;
@@ -383,10 +461,77 @@ function addImageResult(src, label='生成的图片'){
  actions.append(caption,btn,editBtn);box.append(img,actions);$('messages').append(box);
  box.scrollIntoView({behavior:'smooth',block:'end'});
 }
-function errorText(data, fallback='接口返回错误'){
+function formatElapsed(ms){return (ms/1000).toFixed(1)+' 秒'}
+function beginProgress(title){
+ const card=document.createElement('div');card.className='request-progress';
+ const head=document.createElement('div');head.className='progress-head';
+ const heading=document.createElement('span');heading.textContent=title;
+ const time=document.createElement('span');time.className='progress-time';time.textContent='已耗时 0.0 秒';
+ const rail=document.createElement('div');rail.className='progress-rail';
+ const bar=document.createElement('div');bar.className='progress-bar';rail.append(bar);
+ const detail=document.createElement('div');detail.className='progress-detail';detail.textContent='准备发送请求…';
+ head.append(heading,time);card.append(head,rail,detail);$('messages').append(card);card.scrollIntoView({behavior:'smooth',block:'end'});
+ const started=performance.now();
+ const timer=setInterval(()=>{time.textContent='已耗时 '+formatElapsed(performance.now()-started)},200);
+ return {card,heading,time,detail,started,timer};
+}
+function updateProgress(tracker,message){
+ if(!tracker)return;tracker.detail.textContent=message;
+}
+function finishProgress(tracker,success,message){
+ if(!tracker)return;
+ clearInterval(tracker.timer);
+ tracker.card.classList.add(success?'done':'failed');
+ tracker.heading.textContent=success?'已完成':'请求失败';
+ tracker.detail.textContent=message|| (success?'已收到模型完整响应':'请检查网络、模型和 API 设置');
+ tracker.time.textContent='本次耗时 '+formatElapsed(performance.now()-tracker.started);
+}
+async function responseErrorText(res){
+ let raw='';try{raw=await res.text()}catch(e){}
+ try{const data=JSON.parse(raw);return data?.error?.message||data?.message||raw.slice(0,500)||res.statusText}catch(e){return raw.slice(0,500)||res.statusText}
+}
+async function sendGeminiFileChat(prompt,model,files,tracker,answerEl){
+ const parts=[{text:prompt}];
+ files.forEach(file=>{
+  if(file.kind==='pdf')parts.push({inlineData:{mimeType:'application/pdf',data:file.base64}});
+  else parts.push({text:'\n\n【附件文件：'+file.name+'】\n'+file.text+'\n【文件结束】'});
+ });
+ const contents=state.messages.map(item=>({role:item.role==='assistant'?'model':'user',parts:[{text:item.content}]}));
+ contents.push({role:'user',parts});
+ const url=geminiEndpoint(model).replace(':generateContent',':streamGenerateContent')+'?alt=sse';
+ updateProgress(tracker,'正在发送 '+files.length+' 个文件，等待模型开始回复…');
+ status('正在分析附件并调用 Gemini：'+model);
+ const res=await fetch(url,{method:'POST',headers:headers(),body:JSON.stringify({contents})});
+ if(!res.ok)throw new Error('HTTP '+res.status+'：'+await responseErrorText(res));
+ if(!res.body)throw new Error('浏览器未提供流式响应读取能力。');
+ const reader=res.body.getReader(),decoder=new TextDecoder();
+ let buffer='',answer='',finished=false;
+ while(!finished){
+  const {value,done}=await reader.read();if(done)break;
+  buffer+=decoder.decode(value,{stream:true}).replace(/\r\n/g,'\n');
+  let cut;
+  while((cut=buffer.indexOf('\n\n'))!==-1){
+   const event=buffer.slice(0,cut);buffer=buffer.slice(cut+2);
+   for(const line of event.split('\n')){
+    if(!line.startsWith('data:'))continue;
+    const raw=line.slice(5).trim();if(!raw)continue;
+    if(raw==='[DONE]'){finished=true;break}
+    let chunk;try{chunk=JSON.parse(raw)}catch(e){continue}
+    if(chunk.error)throw new Error(chunk.error.message||JSON.stringify(chunk.error));
+    const delta=(chunk?.candidates||[]).flatMap(c=>c?.content?.parts||[]).map(p=>p?.text||'').join('');
+    if(delta){answer+=delta;answerEl.textContent=answer;updateProgress(tracker,'AI 正在回复，已接收 '+answer.length.toLocaleString()+' 个字符…');status('AI 正在回复：已接收 '+answer.length.toLocaleString()+' 个字符');answerEl.scrollIntoView({block:'end'})}
+   }
+   if(finished)break;
+  }
+ }
+ if(!answer)throw new Error('模型已结束响应，但没有返回可显示的文字内容。');
+ state.messages.push({role:'user',content:prompt+'（附件：'+files.map(f=>f.name).join('、')+'）'},{role:'assistant',content:answer});
+ saveHistory();return answer;
+}
+async function errorText(data, fallback='接口返回错误'){
  return data?.error?.message||data?.error?.details?.[0]?.message||data?.message||data?.detail||fallback;
 }
-async function generateImage(prompt, model, referenceImages=[]){
+async function generateImage(prompt, model, referenceImages=[], files=[], tracker=null){
  const mode=$('apiMode').value;
  const endpoint=geminiEndpoint(model);
  let payload;
@@ -396,12 +541,14 @@ async function generateImage(prompt, model, referenceImages=[]){
   const imageConfig={aspectRatio:$('aspectRatio').value};
   const imageSize=$('imageSize').value;if(imageSize)imageConfig.imageSize=imageSize;
   payload={
-   contents:[{role:'user',parts:[{text:prompt},...(referenceImages||[]).map(img=>({inlineData:{mimeType:img.mimeType,data:img.base64}}))]}],
+   contents:[{role:'user',parts:[{text:prompt},...(referenceImages||[]).map(img=>({inlineData:{mimeType:img.mimeType,data:img.base64}})),...(files||[]).map(file=>file.kind==='pdf'?({inlineData:{mimeType:'application/pdf',data:file.base64}}):({text:'\n\n【附件文件：'+file.name+'】\n'+file.text+'\n【文件结束】'}))]}],
    generationConfig:{responseModalities:['TEXT','IMAGE'],imageConfig}
   };
  }
+ updateProgress(tracker,'请求已发送，模型正在生成图片…');
  status('正在调用：'+endpoint);
  const res=await fetch(endpoint,{method:'POST',headers:headers(),body:JSON.stringify(payload)});
+ updateProgress(tracker,'模型已返回响应，正在解析图片数据…');
  const raw=await res.text();
  let data;try{data=JSON.parse(raw)}catch{data={raw}};
  if(!res.ok)throw new Error('HTTP '+res.status+'：'+errorText(data,typeof data.raw==='string'?data.raw.slice(0,700):res.statusText));
@@ -424,6 +571,7 @@ async function generateImage(prompt, model, referenceImages=[]){
   }
  }
  if(!count)throw new Error(errorText(data,'请求成功，但响应中没有找到图片数据。')+'。请确认模型支持当前接口路径和图片输出；可切换 /v1beta 与 /v1 路径分别测试。');
+ updateProgress(tracker,'已收到 '+count+' 张图片，正在完成结果整理…');
  status('图片生成成功：'+model+'，收到 '+count+' 张图片。');
 }
 
@@ -433,12 +581,37 @@ $('chatForm').addEventListener('submit',async e=>{
  let h,endpoint;try{h=headers()}catch(err){status(err.message);return}
  const mode=$('apiMode').value;
  const referenceImages=state.pendingImages.slice();
- if(referenceImages.length&&!['v1beta','v1'].includes(mode)){status('请切换到 Gemini 原生模式后再修改图片。');return}
+ const pendingFiles=state.pendingFiles.slice();
+ if((referenceImages.length||pendingFiles.length)&&!['v1beta','v1'].includes(mode)){status('请切换到 Gemini 原生模式处理图片或文件。');return}
+ if(pendingFiles.length&&!referenceImages.length){
+  addMessage('user','[文件提问] '+text+'（附件：'+pendingFiles.map(file=>file.name).join('、')+'）');
+  $('prompt').value='';$('sendBtn').disabled=true;
+  const tracker=beginProgress('正在分析附件');
+  const answerEl=addMessage('assistant','');
+  try{
+   updateProgress(tracker,'已读取文件，正在连接模型…');
+   await sendGeminiFileChat(text,model,pendingFiles,tracker,answerEl);
+   finishProgress(tracker,true,'AI 已完成文件分析并返回完整答复。');
+   clearPendingFiles();
+   status('文件分析完成：'+model);
+  }catch(err){
+   answerEl.textContent='文件分析失败：'+err.message;
+   finishProgress(tracker,false,err.message);
+   status('文件分析失败：'+err.message);
+  }finally{$('sendBtn').disabled=false;$('prompt').focus()}
+  return;
+ }
  if(mode!=='chat'){
   addMessage('user',(referenceImages.length?'[图片修改] ':'[图片生成] ')+text+(referenceImages.length?'（已附 '+referenceImages.length+' 张原图）':''));$('prompt').value='';$('sendBtn').disabled=true;
-  try{await generateImage(text,model,referenceImages);clearPendingImages()}
-  catch(err){addMessage('assistant','图片生成失败：'+err.message);status('图片生成失败：'+err.message)}
-  finally{$('sendBtn').disabled=false;$('prompt').focus()}
+  const tracker=beginProgress(referenceImages.length?'正在修改图片':'正在生成图片');
+  try{
+   await generateImage(text,model,referenceImages,pendingFiles,tracker);
+   finishProgress(tracker,true,'图片结果已返回，可保存或继续修改。');
+   clearPendingImages();clearPendingFiles();
+  }catch(err){
+   finishProgress(tracker,false,err.message);
+   addMessage('assistant','图片生成失败：'+err.message);status('图片生成失败：'+err.message);
+  }finally{$('sendBtn').disabled=false;$('prompt').focus()}
   return;
  }
  if(referenceImages.length){status('请切换到 Gemini 模式发送参考图。');return}
@@ -446,12 +619,14 @@ $('chatForm').addEventListener('submit',async e=>{
  const outgoing=[];const system=$('systemPrompt').value.trim();if(system)outgoing.push({role:'system',content:system});
  outgoing.push(...state.messages,{role:'user',content:text});
  addMessage('user',text);$('prompt').value='';$('sendBtn').disabled=true;
+ const tracker=beginProgress('正在等待 AI 回复');
  const answerEl=addMessage('assistant','');let answer='';
  try{
   const payload={model,messages:outgoing,stream:true};
   const temp=Number($('temperature').value);if(Number.isFinite(temp)&&temp>=0&&temp<=2)payload.temperature=temp;
   const max=Number($('maxTokens').value);if($('maxTokens').value.trim()&&Number.isInteger(max)&&max>0)payload.max_tokens=max;
   status('正在调用模型：'+model);
+  updateProgress(tracker,'请求已发送，等待模型首段回复…');
   const res=await apiFetch(endpoint,{method:'POST',headers:{...h,'Accept':'text/event-stream'},body:JSON.stringify(payload)});
   if(!res.body)throw new Error('浏览器未提供流式响应读取能力。');
   const reader=res.body.getReader(),decoder=new TextDecoder();let buffer='',finished=false;
@@ -467,15 +642,15 @@ $('chatForm').addEventListener('submit',async e=>{
      let chunk;try{chunk=JSON.parse(raw)}catch{continue}
      if(chunk.error)throw new Error(chunk.error.message||JSON.stringify(chunk.error));
      const delta=chunk?.choices?.[0]?.delta?.content;
-     if(typeof delta==='string'){answer+=delta;answerEl.textContent=answer;answerEl.scrollIntoView({block:'end'});}
+     if(typeof delta==='string'){answer+=delta;answerEl.textContent=answer;updateProgress(tracker,'AI 正在回复，已接收 '+answer.length.toLocaleString()+' 个字符…');tracker.time.textContent='已耗时 '+formatElapsed(performance.now()-tracker.started);answerEl.scrollIntoView({block:'end'});}
      else if(Array.isArray(delta)){for(const part of delta){if(part.type==='text'&&typeof part.text==='string')answer+=part.text}answerEl.textContent=answer;}
     }
     if(finished)break;
    }
   }
   if(!answer)throw new Error('请求已发出但没有收到文本。若错误为 503 No available channel，通常需要服务商检查模型渠道/分组；网页无法自行修复服务端渠道。');
-  state.messages.push({role:'user',content:text},{role:'assistant',content:answer});saveHistory();status('回答完成。当前模型：'+model);
- }catch(err){answerEl.textContent='调用失败：'+err.message;status('调用失败：'+err.message)}
+  state.messages.push({role:'user',content:text},{role:'assistant',content:answer});saveHistory();finishProgress(tracker,true,'已接收完整回复，共 '+answer.length.toLocaleString()+' 个字符。');status('回答完成。当前模型：'+model);
+ }catch(err){answerEl.textContent='调用失败：'+err.message;finishProgress(tracker,false,err.message);status('调用失败：'+err.message)}
  finally{$('sendBtn').disabled=false;$('prompt').focus()}
 });
 $('clearBtn').onclick=()=>{state.messages=[];try{localStorage.removeItem(CHAT_KEY)}catch(e){};$('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const s=document.createElement('strong');s.textContent='对话已清空';w.append(s,document.createTextNode('可以开始新的对话。'));$('messages').append(w);status('对话历史已清空。')};
