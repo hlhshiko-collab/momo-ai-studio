@@ -111,9 +111,11 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
  #imageLightbox{padding:10px}
  #imageLightbox img{max-height:calc(100dvh - 145px)}
 }
+.build-version{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:6px;background:#edf1ff;color:#5068bf;font-size:10px;font-weight:700;vertical-align:1px}
+.image-result img{cursor:zoom-in;touch-action:pan-y;pointer-events:auto}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改</div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">修复版 v8</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -778,8 +780,19 @@ if(safeStoreGet(SAVE_KEY))status('已恢复上次设置。模型列表已缓存�
 activateModeModels($('apiMode').value,{autoFetch:!!$('apiKey').value.trim(),quiet:true});
 </script><script>
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service worker registration failed:', err));
+  let reloadedForWorkerUpdate = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloadedForWorkerUpdate) return;
+    reloadedForWorkerUpdate = true;
+    window.location.reload();
+  });
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+      await registration.update();
+    } catch (err) {
+      console.warn('Service worker update failed:', err);
+    }
   });
 }
 </script>
