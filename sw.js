@@ -1,5 +1,6 @@
 const CACHE='momo-ai-studio-v8';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg'];
+const INDEX_CACHE_KEY=new URL('./index.html',self.registration.scope).toString();
 
 self.addEventListener('install',event=>{
   event.waitUntil(
@@ -32,11 +33,11 @@ self.addEventListener('fetch',event=>{
         .then(response=>{
           if(response.ok){
             const copy=response.clone();
-            caches.open(CACHE).then(cache=>cache.put('./index.html',copy));
+            caches.open(CACHE).then(cache=>cache.put(INDEX_CACHE_KEY,copy));
           }
           return response;
         })
-        .catch(()=>caches.match(request).then(hit=>hit||caches.match('./index.html')))
+        .catch(()=>caches.match(request).then(hit=>hit||caches.match(INDEX_CACHE_KEY)))
     );
     return;
   }
