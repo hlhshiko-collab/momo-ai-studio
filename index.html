@@ -131,7 +131,7 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 @media(max-width:620px){.key-usage-head button{padding:8px 10px}.key-usage-cell strong{font-size:14px}}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">功能更新 v10</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">人民币额度 v11</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -613,33 +613,38 @@ async function sendGeminiFileChat(prompt,model,files,tracker,answerEl){
 function errorText(data, fallback='接口返回错误'){
  return data?.error?.message||data?.error?.details?.[0]?.message||data?.message||data?.detail||fallback;
 }
-function formatQuotaValue(rawQuota,currency){
- const value=Number(rawQuota)||0;
- const type=(currency?.quota_display_type||'').toUpperCase();
- const perUnit=Number(currency?.quota_per_unit);
- if(type==='TOKENS'||!Number.isFinite(perUnit)||perUnit<=0)return Math.round(value).toLocaleString('zh-CN')+' 点';
- const usd=value/perUnit;
- if(type==='CNY')return '¥'+(usd*(Number(currency.usd_exchange_rate)||1)).toFixed(2);
- if(type==='CUSTOM')return (currency.custom_currency_symbol||'¤')+(usd*(Number(currency.custom_currency_exchange_rate)||1)).toFixed(2);
- return '$'+usd.toFixed(2);
+function formatQuotaRmb(rawQuota,currency){
+ const points=Number(rawQuota);
+ const quotaPerUnit=Number(currency?.quota_per_unit);
+ const usdToRmb=Number(currency?.usd_exchange_rate);
+ if(!Number.isFinite(points)||!Number.isFinite(quotaPerUnit)||quotaPerUnit<=0||!Number.isFinite(usdToRmb)||usdToRmb<=0)return null;
+ return '¥'+((points/quotaPerUnit)*usdToRmb).toFixed(2);
 }
 function renderKeyUsage(data,currency){
  const box=$('keyUsageResult');box.replaceChildren();
+ const quotaPerUnit=Number(currency?.quota_per_unit);
+ const usdToRmb=Number(currency?.usd_exchange_rate);
+ const canConvert=Number.isFinite(quotaPerUnit)&&quotaPerUnit>0&&Number.isFinite(usdToRmb)&&usdToRmb>0;
  const rows=[];
  const item=(label,value)=>rows.push({label,value});
  item('Key 名称',data.name||'当前 Key');
- item('累计已消耗',formatQuotaValue(data.total_used,currency));
- item('剩余额度',data.unlimited_quota?'无限额度':formatQuotaValue(data.total_available,currency));
- item('总额度',data.unlimited_quota?'无限额度':formatQuotaValue(data.total_granted,currency));
+ item('累计已消耗',canConvert?formatQuotaRmb(data.total_used,currency):'暂不可换算');
+ item('剩余额度',data.unlimited_quota?'无限额度':(canConvert?formatQuotaRmb(data.total_available,currency):'暂不可换算'));
+ item('总额度',data.unlimited_quota?'无限额度':(canConvert?formatQuotaRmb(data.total_granted,currency):'暂不可换算'));
  if(data.expires_at)item('有效期至',new Date(Number(data.expires_at)*1000).toLocaleString('zh-CN'));
  else item('有效期','长期有效');
  if(data.user_quota){
-  item('账户剩余额度',formatQuotaValue(data.user_quota.total_available,currency));
-  item('账户已用额度',formatQuotaValue(data.user_quota.total_used,currency));
+  item('账户剩余额度',canConvert?formatQuotaRmb(data.user_quota.total_available,currency):'暂不可换算');
+  item('账户已用额度',canConvert?formatQuotaRmb(data.user_quota.total_used,currency):'暂不可换算');
  }
  const grid=document.createElement('div');grid.className='key-usage-grid';
  rows.forEach(row=>{const cell=document.createElement('div');cell.className='key-usage-cell';const label=document.createElement('span');label.textContent=row.label;const value=document.createElement('strong');value.textContent=row.value;cell.append(label,value);grid.append(cell)});
- const note=document.createElement('div');note.className='key-usage-note';note.textContent='数据来自 New API 当前 Key 的额度接口；点击刷新用量可更新。';
+ const note=document.createElement('div');note.className='key-usage-note';
+ if(canConvert){
+  note.textContent='统一按人民币显示。换算依据：额度点数 ÷ '+quotaPerUnit.toLocaleString('zh-CN')+' × '+usdToRmb.toFixed(4)+'（1 USD = ¥'+usdToRmb.toFixed(4)+'）。该汇率来自服务商 New API 配置，并非实时市场汇率。';
+ }else{
+  note.textContent='已获取 Key 额度，但未能读取服务商的额度换算参数（quota_per_unit / usd_exchange_rate），因此暂不能准确换算成人民币。请检查 API 状态接口或联系服务商。';
+ }
  box.append(grid,note);
 }
 async function queryKeyUsage(){
