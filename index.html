@@ -541,40 +541,62 @@ async function generateImage(prompt, model, referenceImages=[], files=[], tracke
   const imageConfig={aspectRatio:$('aspectRatio').value};
   const imageSize=$('imageSize').value;if(imageSize)imageConfig.imageSize=imageSize;
   payload={
-   contents:[{role:'user',parts:[{text:prompt},...(referenceImages||[]).map(img=>({inlineData:{mimeType:img.mimeType,data:img.base64}})),...(files||[]).map(file=>file.kind==='pdf'?({inlineData:{mimeType:'application/pdf',data:file.base64}}):({text:'\n\n【附件文件：'+file.name+'】\n'+file.text+'\n【文件结束】'}))]}],
+   contents:[{role:'user',parts:[{text:prompt},...(referenceImages||[]).map(img=>({inlineData:{mimeType:img.mimeType,data:img.base64}})),...(files||[]).map(file=>file.kind==='pdf'?({inlineData:{mimeType:'application/pdf',data:file.base64}}):({text:'\\n\\n【附件文件：'+file.name+'】\\n'+file.text+'\\n【文件结束】'}))]}],
    generationConfig:{responseModalities:['TEXT','IMAGE'],imageConfig}
   };
  }
  updateProgress(tracker,'请求已发送，模型正在生成图片…');
  status('正在调用：'+endpoint);
- const res=await fetch(endpoint,{method:'POST',headers:headers(),body:JSON.stringify(payload)});
- updateProgress(tracker,'模型已返回响应，正在解析图片数据…');
- const raw=await res.text();
- let data;try{data=JSON.parse(raw)}catch{data={raw}};
- if(!res.ok)throw new Error('HTTP '+res.status+'：'+errorText(data,typeof data.raw==='string'?data.raw.slice(0,700):res.statusText));
  let count=0;
  if(mode==='images'){
+  const res=await fetch(endpoint,{method:'POST',headers:headers(),body:JSON.stringify(payload)});
+  const raw=await res.text();let data;try{data=JSON.parse(raw)}catch(e){data={raw}};
+  if(!res.ok)throw new Error('HTTP '+res.status+'：'+errorText(data,typeof data.raw==='string'?data.raw.slice(0,700):res.statusText));
   for(const item of (Array.isArray(data.data)?data.data:[])){
    if(item.b64_json){addImageResult('data:image/png;base64,'+item.b64_json);count++}
    else if(item.url){addImageResult(item.url);count++}
   }
  }else{
-  const parts=(data?.candidates||[]).flatMap(c=>c?.content?.parts||[]);
-  let imageIndex=0;
-  for(const part of parts){
-   const inline=part.inlineData||part.inline_data;
-   if(inline?.data){
-    const mime=inline.mimeType||inline.mime_type||'image/png';
-    imageIndex++;addImageResult('data:'+mime+';base64,'+inline.data,'生成的图片 '+imageIndex);count++;
+  const streamUrl=endpoint.replace(':generateContent',':streamGenerateContent')+'?alt=sse';
+  const res=await fetch(streamUrl,{method:'POST',headers:{...headers(),'Accept':'text/event-stream'},body:JSON.stringify(payload)});
+  if(!res.ok)throw new Error('HTTP '+res.status+'：'+await responseErrorText(res));
+  if(!res.body)throw new Error('浏览器未提供流式响应读取能力。');
+  const reader=res.body.getReader(),decoder=new TextDecoder();
+  let buffer='',finished=false,textParts=0;
+  while(!finished){
+   const {value,done}=await reader.read();if(done)break;
+   buffer+=decoder.decode(value,{stream:true}).replace(/\\r\\n/g,'\\n');
+   let cut;
+   while((cut=buffer.indexOf('\\n\\n'))!==-1){
+    const event=buffer.slice(0,cut);buffer=buffer.slice(cut+2);
+    for(const line of event.split('\\n')){
+     if(!line.startsWith('data:'))continue;
+     const raw=line.slice(5).trim();if(!raw)continue;
+     if(raw==='[DONE]'){finished=true;break}
+     let chunk;try{chunk=JSON.parse(raw)}catch(e){continue}
+     if(chunk.error)throw new Error(chunk.error.message||JSON.stringify(chunk.error));
+     const parts=(chunk?.candidates||[]).flatMap(c=>c?.content?.parts||[]);
+     for(const part of parts){
+      const inline=part.inlineData||part.inline_data;
+      if(inline?.data){
+       const mime=inline.mimeType||inline.mime_type||'image/png';
+       count++;addImageResult('data:'+mime+';base64,'+inline.data,'生成的图片 '+count);
+       updateProgress(tracker,'已收到第 '+count+' 张图片，正在等待其余生成内容…');
+      }
+      if(typeof part.text==='string'&&part.text.trim()){
+       textParts++;addMessage('assistant',part.text);
+       updateProgress(tracker,'模型已返回文字说明，正在接收图片结果…');
+      }
+     }
+    }
+    if(finished)break;
    }
-   if(typeof part.text==='string'&&part.text.trim())addMessage('assistant',part.text);
   }
  }
- if(!count)throw new Error(errorText(data,'请求成功，但响应中没有找到图片数据。')+'。请确认模型支持当前接口路径和图片输出；可切换 /v1beta 与 /v1 路径分别测试。');
+ if(!count)throw new Error('请求结束，但没有收到图片数据。请确认所选模型支持图像输出，并检查服务商是否开放 Gemini 图像生成渠道。');
  updateProgress(tracker,'已收到 '+count+' 张图片，正在完成结果整理…');
  status('图片生成成功：'+model+'，收到 '+count+' 张图片。');
 }
-
 $('chatForm').addEventListener('submit',async e=>{
  e.preventDefault();const text=$('prompt').value.trim(),model=selectedModel();if(!text)return;
  if(!model){status('请先获取模型列表并选择模型，或手动填写模型 ID。');return}
