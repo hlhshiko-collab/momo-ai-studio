@@ -2,26 +2,26 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark"><meta name="theme-color" content="#0b1222"><meta name="description" content="个人使用的墨墨 API 聊天与 Gemini 图片生成工具"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><title>AI Studio · 墨墨 API</title>
+<meta name="color-scheme" content="light"><meta name="theme-color" content="#f5f7fb"><meta name="description" content="个人使用的墨墨 API 聊天与 Gemini 图片生成工具"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><title>AI Studio · 墨墨 API</title>
 <style>
-:root{color-scheme:dark;--bg:#080d19;--panel:#111a2c;--panel2:#1b2944;--text:#f1f5ff;--muted:#9aa9c7;--accent:#8878ff;--accent2:#5d8dff;--border:#2a3856;--good:#7ce0bd}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 20% 0%,#202c55 0,#0b1222 42%,#080d19 100%);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+:root{color-scheme:light;--bg:#f5f7fb;--panel:#fff;--panel2:#f1f4fa;--text:#202638;--muted:#687386;--accent:#5b75d6;--accent2:#7893e8;--border:#e1e6ef;--good:#21865f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
 .app{max-width:980px;margin:auto;padding:18px;display:flex;flex-direction:column;min-height:100vh;gap:15px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 2px}h1{font-size:25px;letter-spacing:-.5px;margin:0}.sub,.note{font-size:12px;color:var(--muted)}.brandline{display:flex;align-items:center;gap:10px}.brandicon{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 26px #5145b855;font-size:22px}.section-title{font-size:14px;font-weight:750;margin:0 0 12px;display:flex;align-items:center;gap:8px}.section-title:before{content:"";display:block;width:4px;height:16px;border-radius:8px;background:var(--accent)}
-.panel{background:linear-gradient(145deg,rgba(20,31,53,.97),rgba(14,22,39,.98));border:1px solid #2a3856;border-radius:20px;padding:17px;box-shadow:0 12px 35px #00000020}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:17px;box-shadow:0 12px 35px #00000020}
 .settings{display:grid;grid-template-columns:1fr 1fr;gap:11px}.wide{grid-column:1/-1}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}.field label{font-size:12px;color:var(--muted)}
-input,select,textarea{font:inherit;color:var(--text);background:#0b1325;border:1px solid var(--border);border-radius:12px;padding:12px 13px;outline:none;width:100%;min-width:0;transition:border-color .15s,box-shadow .15s}
+input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 13px;outline:none;width:100%;min-width:0;transition:border-color .15s,box-shadow .15s}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px #8878ff20}
 .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
 button{border:0;border-radius:12px;padding:11px 15px;background:linear-gradient(135deg,var(--accent),#6c6cf5);color:white;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 5px 16px #5145b830;transition:transform .12s,filter .12s}button:active{transform:scale(.98)}
-button.secondary{background:#1a2741;border:1px solid #354463;box-shadow:none}button:disabled{opacity:.55;cursor:wait}
+button.secondary{background:#f5f7fb;color:#34415b;border:1px solid var(--border);box-shadow:none}button:disabled{opacity:.55;cursor:wait}
 .status{color:var(--muted);font-size:12px;overflow-wrap:anywhere;flex:1;min-width:160px}
 .chat{flex:1;min-height:350px;display:flex;flex-direction:column;gap:12px}.messages{display:flex;flex-direction:column;gap:12px;flex:1;align-items:stretch}.image-result{width:100%;max-width:760px;align-self:flex-start;background:#19243b;border:1px solid var(--border);border-radius:12px;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:8px}
 .welcome{margin:auto;text-align:center;color:var(--muted);padding:30px 12px}.welcome strong{display:block;color:var(--text);font-size:20px;margin-bottom:8px}
-.msg{max-width:92%;padding:13px 15px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 4px 14px #00000012}.msg.user{align-self:flex-end;background:linear-gradient(135deg,#6253d8,#5145b8);border-bottom-right-radius:5px}.msg.assistant{align-self:flex-start;background:#19243b;border:1px solid var(--border);border-bottom-left-radius:5px}
+.msg{max-width:92%;padding:13px 15px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 4px 14px #00000012}.msg.user{align-self:flex-end;background:linear-gradient(135deg,#6253d8,#5145b8);border-bottom-right-radius:5px}.msg.assistant{align-self:flex-start;background:#f7f8fc;border:1px solid var(--border);border-bottom-left-radius:5px}
 .role{font-size:11px;color:#c3cce3;margin-bottom:5px;font-weight:700}
-.composer{display:flex;gap:9px;align-items:flex-end;position:sticky;bottom:0;padding-top:8px;background:linear-gradient(180deg,transparent,#111a2c 18%)}.composer textarea{resize:vertical;min-height:50px;max-height:180px}.composer button{height:50px;min-width:82px}
+.composer{display:flex;gap:9px;align-items:flex-end;position:sticky;bottom:0;padding-top:8px;background:linear-gradient(180deg,transparent,#111a2c 18%)}.composer textarea{resize:vertical;min-height:50px;max-height:180px}.composer button{height:50px;min-width:82px}.attach-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}.attach-row input{display:none}.attach-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.attach-thumb{position:relative;width:76px;height:76px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f4f6fa}.attach-thumb img{width:100%;height:100%;object-fit:cover}.attach-thumb button{position:absolute;right:3px;top:3px;padding:2px 6px;min-width:0;height:auto;border-radius:20px;background:#202638dd;font-size:12px}
 .hint{font-size:12px;color:var(--muted);margin-top:5px}.remember-row{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin-top:3px}.remember-row input{width:16px;height:16px;accent-color:var(--accent);padding:0}.backup-actions{padding-top:10px;border-top:1px solid var(--border)}.backup-actions .hint{flex-basis:100%;margin-top:0}
 @media(max-width:620px){.app{padding:10px;gap:11px}header{align-items:flex-start}.brandicon{width:38px;height:38px;border-radius:12px}.brandline{gap:9px}h1{font-size:22px}.panel{padding:12px;border-radius:17px}.settings{grid-template-columns:1fr 1fr;gap:9px}.wide{grid-column:1/-1}.msg{max-width:98%}.composer{gap:7px}.composer button{min-width:68px;padding:8px}.actions button{flex:1}.status{flex-basis:100%;min-width:0}.chat{min-height:48vh}}
 </style></head>
@@ -51,12 +51,12 @@ button.secondary{background:#1a2741;border:1px solid #354463;box-shadow:none}but
 </div>
 </section>
 <section class="panel chat"><div class="section-title">对话与生成结果</div><div class="messages" id="messages"><div class="welcome"><strong>你好，需要我帮你做什么？</strong>获取模型列表并选择模型后即可开始聊天。</div></div>
-<form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
+<div class="attach-row"><button class="secondary" id="attachBtn" type="button">＋ 添加参考图</button><input id="imageFiles" type="file" accept="image/*" multiple hidden><span class="hint">Gemini 模式最多 4 张参考图，每张不超过 10MB；图片不会保存进聊天记录。</span></div><div class="attach-preview" id="attachPreview"></div><form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
 <div class="note" id="saveNote">设置保存在此网站的浏览器存储中。API Key 默认不保存；只有开启“记住 API Key”才会保存在本机浏览器。请勿在公共设备使用。浏览器跨域请求是否可用取决于服务商的 CORS 设置。</div></section>
 </main>
 <script>
 const $=id=>document.getElementById(id);
-const state={messages:[],modelIds:[]};
+const state={messages:[],modelIds:[],pendingImages:[]};
 
 // 自动保存页面设置和最近对话；API Key 默认不保存，勾选后才写入本机浏览器存储。
 const SAVE_KEY='momo_api_chat_v5_settings';
@@ -258,6 +258,11 @@ $('testBtn').onclick=async()=>{
  }catch(e){status('测试失败：'+e.message)}
 };
 
+function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(new Error('读取图片失败'));reader.readAsDataURL(file)})}
+function renderPendingImages(){const box=$('attachPreview');box.replaceChildren();state.pendingImages.forEach((item,index)=>{const wrap=document.createElement('div');wrap.className='attach-thumb';const img=document.createElement('img');img.src=item.dataUrl;img.alt=item.name;const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.setAttribute('aria-label','移除图片');remove.onclick=()=>{state.pendingImages.splice(index,1);renderPendingImages()};wrap.append(img,remove);box.append(wrap)})}
+$('attachBtn').addEventListener('click',()=>$('imageFiles').click());
+$('imageFiles').addEventListener('change',async()=>{const files=Array.from($('imageFiles').files||[]);$('imageFiles').value='';for(const file of files){if(state.pendingImages.length>=4){status('最多添加 4 张参考图');break}if(!file.type.startsWith('image/'))continue;if(file.size>10*1024*1024){status('图片超过 10MB，已跳过：'+file.name);continue}try{const dataUrl=await fileToDataUrl(file);state.pendingImages.push({name:file.name,mimeType:file.type||'image/jpeg',dataUrl,base64:dataUrl.split(',')[1]||''})}catch(e){status(e.message)}}renderPendingImages();if(state.pendingImages.length)status('已添加 '+state.pendingImages.length+' 张参考图；请使用 Gemini 原生模式发送。')});
+function clearPendingImages(){state.pendingImages=[];renderPendingImages()}
 function addImageResult(src, label='生成的图片'){
  const box=document.createElement('div');box.className='image-result';
  const img=document.createElement('img');img.src=src;img.alt=label;
@@ -279,7 +284,7 @@ function addImageResult(src, label='生成的图片'){
 function errorText(data, fallback='接口返回错误'){
  return data?.error?.message||data?.error?.details?.[0]?.message||data?.message||data?.detail||fallback;
 }
-async function generateImage(prompt, model){
+async function generateImage(prompt, model, referenceImages=[]){
  const mode=$('apiMode').value;
  const endpoint=geminiEndpoint(model);
  let payload;
@@ -289,7 +294,7 @@ async function generateImage(prompt, model){
   const imageConfig={aspectRatio:$('aspectRatio').value};
   const imageSize=$('imageSize').value;if(imageSize)imageConfig.imageSize=imageSize;
   payload={
-   contents:[{role:'user',parts:[{text:prompt}]}],
+   contents:[{role:'user',parts:[{text:prompt},...(referenceImages||[]).map(img=>({inlineData:{mimeType:img.mimeType,data:img.base64}}))]}],
    generationConfig:{responseModalities:['TEXT','IMAGE'],imageConfig}
   };
  }
@@ -325,13 +330,16 @@ $('chatForm').addEventListener('submit',async e=>{
  if(!model){status('请先获取模型列表并选择模型，或手动填写模型 ID。');return}
  let h,endpoint;try{h=headers()}catch(err){status(err.message);return}
  const mode=$('apiMode').value;
+ const referenceImages=state.pendingImages.slice();
+ if(referenceImages.length&&!['v1beta','v1'].includes(mode)){status('参考图上传目前仅支持 Gemini 原生/兼容模式，请切换后发送。');return}
  if(mode!=='chat'){
   addMessage('user','[图片生成] '+text);$('prompt').value='';$('sendBtn').disabled=true;
-  try{await generateImage(text,model)}
+  try{await generateImage(text,model,referenceImages);clearPendingImages()}
   catch(err){addMessage('assistant','图片生成失败：'+err.message);status('图片生成失败：'+err.message)}
   finally{$('sendBtn').disabled=false;$('prompt').focus()}
   return;
  }
+ if(referenceImages.length){status('请切换到 Gemini 模式发送参考图。');return}
  endpoint=base()+'/chat/completions';
  const outgoing=[];const system=$('systemPrompt').value.trim();if(system)outgoing.push({role:'system',content:system});
  outgoing.push(...state.messages,{role:'user',content:text});
