@@ -1,15 +1,53 @@
-const CACHE='momo-ai-studio-v7';
+const CACHE='momo-ai-studio-v8';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(
-  caches.keys()
-    .then(keys=>Promise.all(keys.filter(k=>k.startsWith('momo-ai-studio-')&&k!==CACHE).map(k=>caches.delete(k))))
-    .then(()=>self.clients.claim())
-));
-self.addEventListener('fetch',e=>{
- const r=e.request,u=new URL(r.url);
- if(r.method!=='GET'||u.origin!==self.location.origin)return;
- if(r.mode==='navigate'||u.pathname.endsWith('/index.html')||u.pathname.endsWith('/')){
-  e.respondWith(fetch(r).then(res=>{const c=res.clone();caches.open(CACHE).then(cache=>cache.put(r,c));return res;}).catch(()=>caches.match(r).then(hit=>hit||caches.match('./index.html'))));
- } else e.respondWith(caches.match(r).then(hit=>hit||fetch(r).then(res=>{if(res.ok){const c=res.clone();caches.open(CACHE).then(cache=>cache.put(r,c));}return res;})));
+
+self.addEventListener('install',event=>{
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache=>cache.addAll(SHELL))
+      .then(()=>self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(
+    caches.keys()
+      .then(keys=>Promise.all(
+        keys.filter(key=>key.startsWith('momo-ai-studio-')&&key!==CACHE).map(key=>caches.delete(key))
+      ))
+      .then(()=>self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch',event=>{
+  const request=event.request;
+  const url=new URL(request.url);
+  if(request.method!=='GET'||url.origin!==self.location.origin)return;
+
+  const isPage=request.mode==='navigate'||url.pathname.endsWith('/index.html')||url.pathname.endsWith('/');
+  if(isPage){
+    // Always prefer a fresh GitHub Pages document; only use cache when offline.
+    event.respondWith(
+      fetch(new Request(request,{cache:'no-store'}))
+        .then(response=>{
+          if(response.ok){
+            const copy=response.clone();
+            caches.open(CACHE).then(cache=>cache.put('./index.html',copy));
+          }
+          return response;
+        })
+        .catch(()=>caches.match(request).then(hit=>hit||caches.match('./index.html')))
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(request).then(hit=>hit||fetch(request).then(response=>{
+      if(response.ok){
+        const copy=response.clone();
+        caches.open(CACHE).then(cache=>cache.put(request,copy));
+      }
+      return response;
+    }))
+  );
 });
