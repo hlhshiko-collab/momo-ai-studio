@@ -89,6 +89,28 @@ button.secondary{background:#f5f7fb;color:#34415b;border:1px solid var(--border)
 
  .msg{max-width:100%}
 }
+/* 修复手机端嵌套滚动：让整页自然滚动，不把消息列表锁在内部滚动框 */
+html{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
+body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:auto}
+.app{height:auto;min-height:100dvh;overflow:visible}
+.chat{height:auto;min-height:0;flex:0 0 auto;overflow:visible}
+.messages{height:auto;min-height:0;max-height:none;overflow:visible;overscroll-behavior: auto;touch-action:pan-y}
+.image-result{flex:0 0 auto;overflow:visible;touch-action:pan-y}
+.image-result img{cursor:zoom-in;touch-action:pan-y}
+.image-result button{touch-action:manipulation}
+#imageLightbox{position:fixed;inset:0;z-index:9999;background:rgba(10,16,29,.94);display:none;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:12px;overscroll-behavior:contain}
+#imageLightbox.open{display:flex}
+#imageLightbox img{display:block;max-width:100%;max-height:calc(100dvh - 130px);width:auto;height:auto;object-fit:contain;border-radius:10px;touch-action:pinch-zoom}
+.lightbox-actions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;width:100%}
+.lightbox-actions button{min-width:104px}
+.lightbox-close{position:absolute;top:calc(env(safe-area-inset-top) + 10px);right:12px;width:42px;height:42px;border-radius:50%;font-size:23px;padding:0;background:#ffffff22;color:#fff}
+@media(max-width:620px){
+ .app{min-height:100dvh;overflow:visible}
+ .chat{min-height:0;height:auto;overflow:visible}
+ .messages{max-height:none;min-height:0;overflow:visible;padding-bottom:12px}
+ #imageLightbox{padding:10px}
+ #imageLightbox img{max-height:calc(100dvh - 145px)}
+}
 </style></head>
 <body><main class="app">
 <header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改</div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
@@ -127,6 +149,11 @@ button.secondary{background:#f5f7fb;color:#34415b;border:1px solid var(--border)
 </div><div class="attach-preview" id="attachPreview"></div><form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
 <div class="note" id="saveNote">设置保存在此网站的浏览器存储中。API Key 默认不保存；只有开启“记住 API Key”才会保存在本机浏览器。请勿在公共设备使用。浏览器跨域请求是否可用取决于服务商的 CORS 设置。</div></section>
 </main>
+<div id="imageLightbox" role="dialog" aria-modal="true" aria-label="图片预览">
+ <button class="lightbox-close" id="lightboxClose" type="button" aria-label="关闭预览">×</button>
+ <img id="lightboxImage" alt="图片预览">
+ <div class="lightbox-actions"><button class="secondary" id="lightboxDownload" type="button">下载图片</button><button class="secondary" id="lightboxCloseBottom" type="button">关闭</button></div>
+</div>
 <script>
 const $=id=>document.getElementById(id);
 const state={messages:[],modelIds:[],pendingImages:[],pendingFiles:[]};
@@ -431,21 +458,38 @@ $('documentFiles').addEventListener('change',async()=>{
   }else status('已添加文件。输入问题后发送，AI 会读取文件内容。');
  }
 });
+function downloadImage(src){
+ const mime=(src.match(/^data:([^;,]+)/)||[])[1]||'image/png';
+ const ext=(mime.split('/')[1]||'png').replace('jpeg','jpg').replace('svg+xml','svg');
+ const filename='ai-studio-'+new Date().toISOString().replace(/[:.]/g,'-')+'.'+ext;
+ const trigger=url=>{const a=document.createElement('a');a.href=url;a.download=filename;a.rel='noopener';document.body.appendChild(a);a.click();a.remove()};
+ if(src.startsWith('data:')){trigger(src);return}
+ fetch(src).then(res=>{if(!res.ok)throw new Error('下载失败');return res.blob()}).then(blob=>{const url=URL.createObjectURL(blob);trigger(url);setTimeout(()=>URL.revokeObjectURL(url),30000)}).catch(()=>{window.open(src,'_blank','noopener');status('图片链接已在新页面打开；如未自动下载，请长按图片保存。')});
+}
+function openImageLightbox(src,label){
+ const lightbox=$('imageLightbox'),image=$('lightboxImage');
+ image.src=src;image.alt=label||'图片预览';
+ $('lightboxDownload').onclick=()=>downloadImage(src);
+ lightbox.classList.add('open');document.body.style.overflow='hidden';
+ $('lightboxClose').focus();
+}
+function closeImageLightbox(){
+ $('imageLightbox').classList.remove('open');$('lightboxImage').src='';document.body.style.overflow='';
+}
+$('lightboxClose').addEventListener('click',closeImageLightbox);
+$('lightboxCloseBottom').addEventListener('click',closeImageLightbox);
+$('imageLightbox').addEventListener('click',e=>{if(e.target===$('imageLightbox'))closeImageLightbox()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('imageLightbox').classList.contains('open'))closeImageLightbox()});
 function addImageResult(src, label='生成的图片'){
  const box=document.createElement('div');box.className='image-result';
  const img=document.createElement('img');img.src=src;img.alt=label;
- img.style.cssText='display:block;width:100%;height:auto;border-radius:8px;background:#0b1325';
- const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;align-items:center;justify-content:space-between';
+ img.style.cssText='display:block;width:100%;height:auto;border-radius:8px;background:#f3f5f9';
+ img.loading='lazy';img.decoding='async';
+ img.addEventListener('click',()=>openImageLightbox(src,label));
+ const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap';
  const caption=document.createElement('span');caption.textContent=label;caption.style.cssText='font-size:12px;color:var(--muted);overflow-wrap:anywhere';
- const btn=document.createElement('button');btn.type='button';btn.className='secondary';btn.textContent='保存图片';btn.style.cssText='padding:8px 11px;white-space:nowrap';
- btn.addEventListener('click',()=>{
-  if(!src.startsWith('data:')){window.open(src,'_blank','noopener');return;}
-  const a=document.createElement('a');a.href=src;
-  const mime=(src.match(/^data:([^;,]+)/)||[])[1]||'image/png';
-  const ext=mime.split('/')[1]?.replace('jpeg','jpg')||'png';
-  a.download='ai-studio-'+new Date().toISOString().replace(/[:.]/g,'-')+'.'+ext;
-  document.body.appendChild(a);a.click();a.remove();
- });
+ const btn=document.createElement('button');btn.type='button';btn.className='secondary';btn.textContent='下载图片';btn.style.cssText='padding:8px 11px;white-space:nowrap';
+ btn.addEventListener('click',()=>downloadImage(src));
  const editBtn=document.createElement('button');editBtn.type='button';editBtn.className='secondary';editBtn.textContent='继续修改';
  editBtn.style.cssText='padding:8px 11px;white-space:nowrap';
  editBtn.addEventListener('click',()=>{
@@ -456,9 +500,8 @@ function addImageResult(src, label='生成的图片'){
   if(!['v1beta','v1'].includes($('apiMode').value)){$('apiMode').value='v1beta';$('apiMode').dispatchEvent(new Event('change',{bubbles:true}))}
   $('prompt').focus();status('已把上一张结果设为原图，请输入下一步修改要求。');
  });
- actions.style.flexWrap='wrap';
  actions.append(caption,btn,editBtn);box.append(img,actions);$('messages').append(box);
- box.scrollIntoView({behavior:'smooth',block:'end'});
+ box.scrollIntoView({behavior:'auto',block:'nearest'});
 }
 function formatElapsed(ms){return (ms/1000).toFixed(1)+' 秒'}
 function beginProgress(title){
