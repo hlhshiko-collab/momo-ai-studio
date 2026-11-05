@@ -2,7 +2,7 @@
   "id": "./",
   "name": "AI Studio · 墨墨 API",
   "short_name": "AI Studio",
-  "description": "个人使用的墨墨 API 文字聊天、Gemini 图片生成与图片修改工具",
+  "description": "个人使用的墨墨 API 文字聊天、Gemini 图片生成、图片修改与文件分析工具",
   "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",
