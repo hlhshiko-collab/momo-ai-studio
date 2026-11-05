@@ -527,7 +527,7 @@ async function sendGeminiFileChat(prompt,model,files,tracker,answerEl){
  state.messages.push({role:'user',content:prompt+'（附件：'+files.map(f=>f.name).join('、')+'）'},{role:'assistant',content:answer});
  saveHistory();return answer;
 }
-async function errorText(data, fallback='接口返回错误'){
+function errorText(data, fallback='接口返回错误'){
  return data?.error?.message||data?.error?.details?.[0]?.message||data?.message||data?.detail||fallback;
 }
 async function generateImage(prompt, model, referenceImages=[], files=[], tracker=null){
@@ -664,7 +664,7 @@ $('chatForm').addEventListener('submit',async e=>{
      if(chunk.error)throw new Error(chunk.error.message||JSON.stringify(chunk.error));
      const delta=chunk?.choices?.[0]?.delta?.content;
      if(typeof delta==='string'){answer+=delta;answerEl.textContent=answer;updateProgress(tracker,'AI 正在回复，已接收 '+answer.length.toLocaleString()+' 个字符…');tracker.time.textContent='已耗时 '+formatElapsed(performance.now()-tracker.started);answerEl.scrollIntoView({block:'end'});}
-     else if(Array.isArray(delta)){for(const part of delta){if(part.type==='text'&&typeof part.text==='string')answer+=part.text}answerEl.textContent=answer;}
+     else if(Array.isArray(delta)){for(const part of delta){if(part.type==='text'&&typeof part.text==='string')answer+=part.text}answerEl.textContent=answer;updateProgress(tracker,'AI 正在回复，已接收 '+answer.length.toLocaleString()+' 个字符…');}
     }
     if(finished)break;
    }
