@@ -113,9 +113,25 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 }
 .build-version{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:6px;background:#edf1ff;color:#5068bf;font-size:10px;font-weight:700;vertical-align:1px}
 .image-result img{cursor:zoom-in;touch-action:pan-y;pointer-events:auto}
+
+.key-usage-panel{border:1px solid var(--border);border-radius:14px;padding:12px;background:#fbfcff;gap:10px}
+.key-usage-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.key-usage-head>div{display:flex;flex-direction:column;gap:2px}
+.key-usage-head strong{font-size:13px;color:var(--text)}
+.key-usage-head span{font-size:11px;color:var(--muted)}
+.key-usage-head button{flex:0 0 auto;padding:8px 12px}
+.key-usage-result{min-width:0}
+.key-usage-empty,.key-usage-note{font-size:11px;color:var(--muted)}
+.key-usage-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.key-usage-cell{display:flex;flex-direction:column;gap:3px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:9px 10px;min-width:0}
+.key-usage-cell span{font-size:11px;color:var(--muted)}
+.key-usage-cell strong{font-size:15px;color:#26345a;overflow-wrap:anywhere}
+.key-usage-note{margin-top:8px}
+.key-usage-error{font-size:12px;line-height:1.55;color:#9c3f3f;background:#fff4f3;border:1px solid #f0d4d1;padding:10px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:620px){.key-usage-head button{padding:8px 10px}.key-usage-cell strong{font-size:14px}}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">修复版 v8</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">功能更新 v9</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -123,6 +139,10 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 <div class="settings">
 <div class="field wide"><label for="baseUrl">API Base URL</label><input id="baseUrl" value="https://api.momoapi.icu/v1" placeholder="https://你的API域名/v1" autocomplete="url"><div class="hint">填写 https://api.momoapi.icu 或 https://api.momoapi.icu/v1 均可；不要填写具体接口路径。网页会分别拼接 OpenAI 兼容路径和 Gemini 原生路径。</div></div>
 <div class="field wide"><label for="apiKey">API Key</label><input id="apiKey" type="password" placeholder="粘贴 API Key" autocomplete="off"><label class="remember-row"><input id="rememberKey" type="checkbox"> 在此浏览器记住 API Key（仅个人设备建议开启）</label></div>
+<div class="field wide key-usage-panel">
+ <div class="key-usage-head"><div><strong>Key 用量管理</strong><span>查询当前 API Key 的已用额度与剩余额度</span></div><button id="queryKeyUsageBtn" class="secondary" type="button">查询用量</button></div>
+ <div id="keyUsageResult" class="key-usage-result"><span class="key-usage-empty">填写 API Key 后，点击「查询用量」查看余额。</span></div>
+</div>
 <div class="field wide"><label for="apiMode">调用模式</label><select id="apiMode"><option value="chat">文字聊天（/v1/chat/completions）</option><option value="v1beta">Gemini 原生（推荐）：/v1beta/models/{model}:generateContent</option><option value="v1">Gemini 兼容：/v1/models/{model}:generateContent</option><option value="images">OpenAI 图片接口（DALL·E / GPT Image 等）</option></select><div class="hint">按 New API 官方路由区分协议：文字聊天用 /v1/chat/completions；Gemini 图片优先用 /v1beta/models/{model}:generateContent；通用图片接口主要面向 DALL·E / GPT Image。</div></div>
 <div class="field"><label for="aspectRatio">图片比例（Gemini）</label><select id="aspectRatio"><option value="3:4">3:4 竖图</option><option value="1:1">1:1 方图</option><option value="4:3">4:3 横图</option><option value="9:16">9:16 竖屏</option><option value="16:9">16:9 横屏</option></select></div>
 <div class="field"><label for="imageSize">图片尺寸（Gemini）</label><select id="imageSize"><option value="">默认</option><option value="1K">1K</option><option value="2K">2K</option><option value="4K">4K</option></select></div>
@@ -246,6 +266,24 @@ function headers(){
  return {'Authorization':'Bearer '+key,'Content-Type':'application/json','Accept':'application/json'};
 }
 function status(t){$('status').textContent=t}
+function explainApiError(message){
+ const raw=String(message||'未知错误'),lower=raw.toLowerCase();
+ if(lower.includes('prompt or image unsafe')||lower.includes('image unsafe')||lower.includes('prompt unsafe')||lower.includes('safety policy'))
+  return '模型安全审核未通过：提示词或上传图片可能触发了模型的安全限制。\n建议：简化提示词，删除容易被误解的敏感描述；将要求聚焦于光线、色彩、背景或画面风格；也可以换一张图片再试。\n原始错误：'+raw;
+ if(lower.includes('invalid api key')||lower.includes('incorrect api key')||lower.includes('invalid token')||lower.includes('token not found')||lower.includes('no authorization header'))
+  return 'API Key 无效或未被服务商识别。请检查 Key 是否完整、是否已失效，以及 API 地址是否正确。\n原始错误：'+raw;
+ if(lower.includes('insufficient_quota')||lower.includes('quota exceeded')||lower.includes('quota is not enough')||lower.includes('insufficient balance'))
+  return '额度不足：当前 Key 的剩余额度可能不够。请在「Key 用量管理」中查询余额，或联系服务商充值/调整额度。\n原始错误：'+raw;
+ if(lower.includes('429')||lower.includes('rate limit')||lower.includes('too many requests'))
+  return '请求过于频繁，服务商触发了速率限制。请稍后重试，或检查 Key 的并发与调用频率限制。\n原始错误：'+raw;
+ if(lower.includes('503')||lower.includes('no available channel')||lower.includes('no available upstream'))
+  return '服务商当前没有可用的模型渠道，或上游暂时不可用。这通常不是网页故障，请换一个可用模型或稍后重试。\n原始错误：'+raw;
+ if(lower.includes('cors')||lower.includes('failed to fetch')||lower.includes('网络请求失败'))
+  return '网络请求失败：可能是网络连接、跨域 CORS 或 API 地址问题。请确认网络正常，并检查服务商是否允许网页跨域调用。\n原始错误：'+raw;
+ if(lower.includes('401'))return '鉴权失败：请检查 API Key 是否正确或已过期。\n原始错误：'+raw;
+ if(lower.includes('403'))return '权限不足：当前 API Key 可能没有调用该模型或接口的权限。\n原始错误：'+raw;
+ return raw;
+}
 function addMessage(role,content=''){
  const w=document.querySelector('.welcome');if(w)w.remove();
  const el=document.createElement('div');el.className='msg '+role;
@@ -575,6 +613,60 @@ async function sendGeminiFileChat(prompt,model,files,tracker,answerEl){
 function errorText(data, fallback='接口返回错误'){
  return data?.error?.message||data?.error?.details?.[0]?.message||data?.message||data?.detail||fallback;
 }
+function formatQuotaValue(rawQuota,currency){
+ const value=Number(rawQuota)||0;
+ const type=(currency?.quota_display_type||'').toUpperCase();
+ const perUnit=Number(currency?.quota_per_unit);
+ if(type==='TOKENS'||!Number.isFinite(perUnit)||perUnit<=0)return Math.round(value).toLocaleString('zh-CN')+' 点';
+ const usd=value/perUnit;
+ if(type==='CNY')return '¥'+(usd*(Number(currency.usd_exchange_rate)||1)).toFixed(2);
+ if(type==='CUSTOM')return (currency.custom_currency_symbol||'¤')+(usd*(Number(currency.custom_currency_exchange_rate)||1)).toFixed(2);
+ return '$'+usd.toFixed(2);
+}
+function renderKeyUsage(data,currency){
+ const box=$('keyUsageResult');box.replaceChildren();
+ const rows=[];
+ const item=(label,value)=>rows.push({label,value});
+ item('Key 名称',data.name||'当前 Key');
+ item('累计已消耗',formatQuotaValue(data.total_used,currency));
+ item('剩余额度',data.unlimited_quota?'无限额度':formatQuotaValue(data.total_available,currency));
+ item('总额度',data.unlimited_quota?'无限额度':formatQuotaValue(data.total_granted,currency));
+ if(data.expires_at)item('有效期至',new Date(Number(data.expires_at)*1000).toLocaleString('zh-CN'));
+ else item('有效期','长期有效');
+ if(data.user_quota){
+  item('账户剩余额度',formatQuotaValue(data.user_quota.total_available,currency));
+  item('账户已用额度',formatQuotaValue(data.user_quota.total_used,currency));
+ }
+ const grid=document.createElement('div');grid.className='key-usage-grid';
+ rows.forEach(row=>{const cell=document.createElement('div');cell.className='key-usage-cell';const label=document.createElement('span');label.textContent=row.label;const value=document.createElement('strong');value.textContent=row.value;cell.append(label,value);grid.append(cell)});
+ const note=document.createElement('div');note.className='key-usage-note';note.textContent='数据来自 New API 当前 Key 的额度接口；点击刷新用量可更新。';
+ box.append(grid,note);
+}
+async function queryKeyUsage(){
+ const button=$('queryKeyUsageBtn'),key=$('apiKey').value.trim();
+ if(!key){$('keyUsageResult').textContent='请先填写 API Key。';status('请先填写 API Key，再查询 Key 用量。');return}
+ button.disabled=true;button.textContent='查询中…';$('keyUsageResult').textContent='正在查询当前 Key 的额度…';
+ try{
+  const root=originBase(),auth={'Authorization':'Bearer '+key,'Accept':'application/json'};
+  const [usageRes,statusRes]=await Promise.all([
+   fetch(root+'/api/usage/token/',{method:'GET',headers:auth,cache:'no-store'}),
+   fetch(root+'/api/status',{method:'GET',headers:{'Accept':'application/json'},cache:'no-store'})
+  ]);
+  let usageBody;try{usageBody=await usageRes.json()}catch(e){usageBody={message:'服务商返回了无法识别的数据'};}
+  if(!usageRes.ok||usageBody.code!==true||!usageBody.data){
+   const msg=usageBody?.message||usageBody?.error?.message||('HTTP '+usageRes.status);
+   throw new Error(explainApiError(msg));
+  }
+  let statusBody={};if(statusRes.ok){try{statusBody=await statusRes.json()}catch(e){}}
+  renderKeyUsage(usageBody.data,statusBody?.data||{});
+  status('Key 用量查询成功：'+(usageBody.data.name||'当前 Key'));
+ }catch(err){
+  const box=$('keyUsageResult');box.replaceChildren();
+  const error=document.createElement('div');error.className='key-usage-error';error.textContent=explainApiError(err.message);
+  box.append(error);status('Key 用量查询失败：'+err.message);
+ }finally{button.disabled=false;button.textContent='刷新用量'}
+}
+$('queryKeyUsageBtn').addEventListener('click',queryKeyUsage);
 async function generateImage(prompt, model, referenceImages=[], files=[], tracker=null){
  const mode=$('apiMode').value;
  const endpoint=geminiEndpoint(model);
@@ -661,9 +753,9 @@ $('chatForm').addEventListener('submit',async e=>{
    clearPendingFiles();
    status('文件分析完成：'+model);
   }catch(err){
-   answerEl.textContent='文件分析失败：'+err.message;
-   finishProgress(tracker,false,err.message);
-   status('文件分析失败：'+err.message);
+   answerEl.textContent='文件分析失败：'+explainApiError(err.message);
+   finishProgress(tracker,false,explainApiError(err.message));
+   status('文件分析失败：'+explainApiError(err.message));
   }finally{$('sendBtn').disabled=false;$('prompt').focus()}
   return;
  }
@@ -675,8 +767,8 @@ $('chatForm').addEventListener('submit',async e=>{
    finishProgress(tracker,true,'图片结果已返回，可保存或继续修改。');
    clearPendingImages();clearPendingFiles();
   }catch(err){
-   finishProgress(tracker,false,err.message);
-   addMessage('assistant','图片生成失败：'+err.message);status('图片生成失败：'+err.message);
+   finishProgress(tracker,false,explainApiError(err.message));
+   addMessage('assistant','图片生成失败：'+explainApiError(err.message));status('图片生成失败：'+explainApiError(err.message));
   }finally{$('sendBtn').disabled=false;$('prompt').focus()}
   return;
  }
@@ -716,7 +808,7 @@ $('chatForm').addEventListener('submit',async e=>{
   }
   if(!answer)throw new Error('请求已发出但没有收到文本。若错误为 503 No available channel，通常需要服务商检查模型渠道/分组；网页无法自行修复服务端渠道。');
   state.messages.push({role:'user',content:text},{role:'assistant',content:answer});saveHistory();finishProgress(tracker,true,'已接收完整回复，共 '+answer.length.toLocaleString()+' 个字符。');status('回答完成。当前模型：'+model);
- }catch(err){answerEl.textContent='调用失败：'+err.message;finishProgress(tracker,false,err.message);status('调用失败：'+err.message)}
+ }catch(err){answerEl.textContent='调用失败：'+explainApiError(err.message);finishProgress(tracker,false,explainApiError(err.message));status('调用失败：'+explainApiError(err.message))}
  finally{$('sendBtn').disabled=false;$('prompt').focus()}
 });
 $('clearBtn').onclick=()=>{state.messages=[];try{localStorage.removeItem(CHAT_KEY)}catch(e){};$('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const s=document.createElement('strong');s.textContent='对话已清空';w.append(s,document.createTextNode('可以开始新的对话。'));$('messages').append(w);status('对话历史已清空。')};
