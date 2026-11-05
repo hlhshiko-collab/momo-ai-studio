@@ -129,9 +129,16 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 .key-usage-note{margin-top:8px}
 .key-usage-error{font-size:12px;line-height:1.55;color:#9c3f3f;background:#fff4f3;border:1px solid #f0d4d1;padding:10px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:620px){.key-usage-head button{padding:8px 10px}.key-usage-cell strong{font-size:14px}}
+
+.quota-manual-config{background:#fff;border:1px solid var(--border);border-radius:11px;padding:10px;margin:10px 0}
+.quota-manual-title{font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text)}
+.quota-manual-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quota-manual-fields label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--muted);min-width:0}
+.quota-manual-fields input{width:100%;min-width:0;border:1px solid var(--border);border-radius:9px;padding:9px;font-size:14px;background:#fff;color:var(--text)}
+@media(max-width:480px){.quota-manual-fields{grid-template-columns:1fr}}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">人民币额度 v11</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">人民币换算可配置 v12</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -141,6 +148,14 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 <div class="field wide"><label for="apiKey">API Key</label><input id="apiKey" type="password" placeholder="粘贴 API Key" autocomplete="off"><label class="remember-row"><input id="rememberKey" type="checkbox"> 在此浏览器记住 API Key（仅个人设备建议开启）</label></div>
 <div class="field wide key-usage-panel">
  <div class="key-usage-head"><div><strong>Key 用量管理</strong><span>查询当前 API Key 的已用额度与剩余额度</span></div><button id="queryKeyUsageBtn" class="secondary" type="button">查询用量</button></div>
+ <div class="quota-manual-config">
+  <div class="quota-manual-title">人民币换算设置</div>
+  <div class="quota-manual-fields">
+   <label>每美元对应额度点数<input id="quotaPerUsdInput" type="number" min="1" step="1" inputmode="numeric" value="500000"></label>
+   <label>1 美元兑换人民币<input id="usdToRmbInput" type="number" min="0.0001" step="0.0001" inputmode="decimal" placeholder="例如 7.20"></label>
+  </div>
+  <div class="key-usage-note">优先使用服务商返回的换算参数；未返回时使用这里填写的数值。New API 常见默认点数为 500,000，但请以服务商实际配置为准。汇率请按服务商计费规则填写。</div>
+ </div>
  <div id="keyUsageResult" class="key-usage-result"><span class="key-usage-empty">填写 API Key 后，点击「查询用量」查看余额。</span></div>
 </div>
 <div class="field wide"><label for="apiMode">调用模式</label><select id="apiMode"><option value="chat">文字聊天（/v1/chat/completions）</option><option value="v1beta">Gemini 原生（推荐）：/v1beta/models/{model}:generateContent</option><option value="v1">Gemini 兼容：/v1/models/{model}:generateContent</option><option value="images">OpenAI 图片接口（DALL·E / GPT Image 等）</option></select><div class="hint">按 New API 官方路由区分协议：文字聊天用 /v1/chat/completions；Gemini 图片优先用 /v1beta/models/{model}:generateContent；通用图片接口主要面向 DALL·E / GPT Image。</div></div>
@@ -620,10 +635,23 @@ function formatQuotaRmb(rawQuota,currency){
  if(!Number.isFinite(points)||!Number.isFinite(quotaPerUnit)||quotaPerUnit<=0||!Number.isFinite(usdToRmb)||usdToRmb<=0)return null;
  return '¥'+((points/quotaPerUnit)*usdToRmb).toFixed(2);
 }
+function loadQuotaManualConfig(){
+ try{
+  const saved=JSON.parse(localStorage.getItem('momoQuotaRmbConfig')||'{}');
+  if(saved.quotaPerUnit)$('quotaPerUsdInput').value=saved.quotaPerUnit;
+  if(saved.usdToRmb)$('usdToRmbInput').value=saved.usdToRmb;
+ }catch(e){}
+}
+function saveQuotaManualConfig(){
+ const config={quotaPerUnit:Number($('quotaPerUsdInput').value),usdToRmb:Number($('usdToRmbInput').value)};
+ try{localStorage.setItem('momoQuotaRmbConfig',JSON.stringify(config))}catch(e){}
+ return config;
+}
 function renderKeyUsage(data,currency){
  const box=$('keyUsageResult');box.replaceChildren();
- const quotaPerUnit=Number(currency?.quota_per_unit);
- const usdToRmb=Number(currency?.usd_exchange_rate);
+ const manual=saveQuotaManualConfig();
+ const quotaPerUnit=Number(currency?.quota_per_unit)||manual.quotaPerUnit;
+ const usdToRmb=Number(currency?.usd_exchange_rate)||manual.usdToRmb;
  const canConvert=Number.isFinite(quotaPerUnit)&&quotaPerUnit>0&&Number.isFinite(usdToRmb)&&usdToRmb>0;
  const rows=[];
  const item=(label,value)=>rows.push({label,value});
@@ -641,7 +669,7 @@ function renderKeyUsage(data,currency){
  rows.forEach(row=>{const cell=document.createElement('div');cell.className='key-usage-cell';const label=document.createElement('span');label.textContent=row.label;const value=document.createElement('strong');value.textContent=row.value;cell.append(label,value);grid.append(cell)});
  const note=document.createElement('div');note.className='key-usage-note';
  if(canConvert){
-  note.textContent='统一按人民币显示。换算依据：额度点数 ÷ '+quotaPerUnit.toLocaleString('zh-CN')+' × '+usdToRmb.toFixed(4)+'（1 USD = ¥'+usdToRmb.toFixed(4)+'）。该汇率来自服务商 New API 配置，并非实时市场汇率。';
+  note.textContent='统一按人民币显示。换算依据：额度点数 ÷ '+quotaPerUnit.toLocaleString('zh-CN')+' × '+usdToRmb.toFixed(4)+'（1 USD = ¥'+usdToRmb.toFixed(4)+'）。参数优先读取服务商配置；缺失时使用本机手动设置。';
  }else{
   note.textContent='已获取 Key 额度，但未能读取服务商的额度换算参数（quota_per_unit / usd_exchange_rate），因此暂不能准确换算成人民币。请检查 API 状态接口或联系服务商。';
  }
@@ -680,6 +708,10 @@ async function queryKeyUsage(){
  }finally{button.disabled=false;button.textContent='刷新用量'}
 }
 $('queryKeyUsageBtn').addEventListener('click',queryKeyUsage);
+loadQuotaManualConfig();
+$('quotaPerUsdInput').addEventListener('change',()=>{saveQuotaManualConfig();});
+$('usdToRmbInput').addEventListener('change',()=>{saveQuotaManualConfig();});
+
 async function generateImage(prompt, model, referenceImages=[], files=[], tracker=null){
  const mode=$('apiMode').value;
  const endpoint=geminiEndpoint(model);
