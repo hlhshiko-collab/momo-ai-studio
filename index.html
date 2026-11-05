@@ -655,7 +655,7 @@ async function queryKeyUsage(){
   let usageBody;try{usageBody=await usageRes.json()}catch(e){usageBody={message:'服务商返回了无法识别的数据'};}
   if(!usageRes.ok||usageBody.code!==true||!usageBody.data){
    const msg=usageBody?.message||usageBody?.error?.message||('HTTP '+usageRes.status);
-   throw new Error(explainApiError(msg));
+   throw new Error(msg);
   }
   let statusBody={};if(statusRes.ok){try{statusBody=await statusRes.json()}catch(e){}}
   renderKeyUsage(usageBody.data,statusBody?.data||{});
