@@ -540,7 +540,7 @@ async function generateImage(prompt, model, referenceImages=[], files=[], tracke
   const imageConfig={aspectRatio:$('aspectRatio').value};
   const imageSize=$('imageSize').value;if(imageSize)imageConfig.imageSize=imageSize;
   payload={
-   contents:[{role:'user',parts:[{text:prompt},...(referenceImages||[]).map(img=>({inlineData:{mimeType:img.mimeType,data:img.base64}})),...(files||[]).map(file=>file.kind==='pdf'?({inlineData:{mimeType:'application/pdf',data:file.base64}}):({text:'\\n\\n【附件文件：'+file.name+'】\\n'+file.text+'\\n【文件结束】'}))]}],
+   contents:[{role:'user',parts:[{text:prompt},...(referenceImages||[]).map(img=>({inlineData:{mimeType:img.mimeType,data:img.base64}})),...(files||[]).map(file=>file.kind==='pdf'?({inlineData:{mimeType:'application/pdf',data:file.base64}}):({text:'\n\n【附件文件：'+file.name+'】\n'+file.text+'\n【文件结束】'}))]}],
    generationConfig:{responseModalities:['TEXT','IMAGE'],imageConfig}
   };
  }
@@ -564,11 +564,11 @@ async function generateImage(prompt, model, referenceImages=[], files=[], tracke
   let buffer='',finished=false,textParts=0;
   while(!finished){
    const {value,done}=await reader.read();if(done)break;
-   buffer+=decoder.decode(value,{stream:true}).replace(/\\r\\n/g,'\\n');
+   buffer+=decoder.decode(value,{stream:true}).replace(/\r\n/g,'\n');
    let cut;
-   while((cut=buffer.indexOf('\\n\\n'))!==-1){
+   while((cut=buffer.indexOf('\n\n'))!==-1){
     const event=buffer.slice(0,cut);buffer=buffer.slice(cut+2);
-    for(const line of event.split('\\n')){
+    for(const line of event.split('\n')){
      if(!line.startsWith('data:'))continue;
      const raw=line.slice(5).trim();if(!raw)continue;
      if(raw==='[DONE]'){finished=true;break}
