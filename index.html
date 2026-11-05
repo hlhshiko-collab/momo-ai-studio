@@ -24,11 +24,64 @@ button.secondary{background:#f5f7fb;color:#34415b;border:1px solid var(--border)
 .composer{display:flex;gap:9px;align-items:flex-end;position:sticky;bottom:0;padding-top:8px;background:linear-gradient(180deg,transparent,#111a2c 18%)}.composer textarea{resize:vertical;min-height:50px;max-height:180px}.composer button{height:50px;min-width:82px}.attach-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}.attach-row input{display:none}.attach-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.attach-thumb{position:relative;width:76px;height:76px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f4f6fa}.attach-thumb img{width:100%;height:100%;object-fit:cover}.attach-thumb button{position:absolute;right:3px;top:3px;padding:2px 6px;min-width:0;height:auto;border-radius:20px;background:#202638dd;font-size:12px}
 .hint{font-size:12px;color:var(--muted);margin-top:5px}.remember-row{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin-top:3px}.remember-row input{width:16px;height:16px;accent-color:var(--accent);padding:0}.backup-actions{padding-top:10px;border-top:1px solid var(--border)}.backup-actions .hint{flex-basis:100%;margin-top:0}
 @media(max-width:620px){.app{padding:10px;gap:11px}header{align-items:flex-start}.brandicon{width:38px;height:38px;border-radius:12px}.brandline{gap:9px}h1{font-size:22px}.panel{padding:12px;border-radius:17px}.settings{grid-template-columns:1fr 1fr;gap:9px}.wide{grid-column:1/-1}.msg{max-width:98%}.composer{gap:7px}.composer button{min-width:68px;padding:8px}.actions button{flex:1}.status{flex-basis:100%;min-width:0}.chat{min-height:48vh}}
+
+/* Mobile-first UI refinements */
+.app{min-height:100dvh;gap:12px}
+.panel{box-shadow:0 4px 18px rgba(32,48,76,.06)}
+.settings-details>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;min-height:38px}
+.settings-details>summary::-webkit-details-marker{display:none}
+.settings-summary-title{font-size:14px;font-weight:750}
+.settings-summary-hint{font-size:12px;color:var(--muted);flex:1}
+.settings-chevron{font-size:20px;color:var(--muted);transition:transform .18s}
+.settings-details[open] .settings-chevron{transform:rotate(180deg)}
+.settings-content{padding-top:14px}
+.settings-panel{padding:14px 16px}
+.chat{min-height:420px;gap:10px}
+.messages{min-height:260px;max-height:58vh;overflow-y:auto;overscroll-behavior:contain;padding:4px 2px 10px}
+.image-result{background:#fff;border-color:var(--border);box-shadow:0 3px 14px rgba(30,42,65,.06)}
+.image-result img{background:#f3f5f9!important}
+.role{color:#65718a}
+.composer{position:static;background:var(--panel);padding-top:4px}
+.composer textarea{background:#fff;min-height:54px}
+.attach-row{margin-top:0;padding-top:6px}
+.attach-main{background:#f3f6ff!important;color:#405bb5!important;border-color:#dce4fb!important}
+.attach-preview{align-items:flex-start;gap:9px}
+.attach-caption{width:100%;font-size:12px;color:var(--muted);font-weight:650}
+.attach-thumb{width:82px;height:82px;overflow:visible;border-radius:12px;background:#fff}
+.attach-thumb>img{border-radius:11px}
+.attach-thumb button{right:-6px;top:-6px;width:23px;height:23px;padding:0;display:grid;place-items:center}
+.attach-name{display:block;position:absolute;left:0;right:0;top:calc(100% + 2px);font-size:10px;line-height:1.2;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.welcome{min-height:220px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.msg.user{background:#eaf0ff;color:#23335d;border:1px solid #dce5ff}
+.msg.assistant{background:#fff;color:var(--text)}
+.note{line-height:1.5}
+@media(max-width:620px){
+ .app{padding:9px;gap:9px}
+ header{align-items:center;padding:4px 2px}
+ h1{font-size:20px}
+ .brandicon{width:36px;height:36px}
+ .settings-panel{padding:11px 13px}
+ .settings-summary-hint{display:none}
+ .settings{grid-template-columns:1fr;gap:10px}
+ .wide{grid-column:auto}
+ .actions button{flex:initial}
+ .actions .status{flex-basis:100%}
+ .chat{min-height:calc(100dvh - 165px);padding:12px}
+ .messages{min-height:36vh;max-height:calc(100dvh - 340px)}
+ .composer{gap:7px;align-items:stretch}
+ .composer textarea{min-height:54px;resize:vertical}
+ .composer button{min-width:66px;height:54px}
+ .attach-row{align-items:flex-start}
+ .attach-row .hint{flex:1;min-width:100%;margin-top:0}
+ .msg{max-width:100%}
+}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">New API · 文字聊天 / Gemini 图片生成</div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
-<section class="panel">
-<div class="section-title">连接与模型设置</div>
+<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改</div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<section class="panel settings-panel">
+<details class="settings-details" id="settingsDetails" open>
+<summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
+<div class="settings-content">
 <div class="settings">
 <div class="field wide"><label for="baseUrl">API Base URL</label><input id="baseUrl" value="https://api.momoapi.icu/v1" placeholder="https://你的API域名/v1" autocomplete="url"><div class="hint">填写 https://api.momoapi.icu 或 https://api.momoapi.icu/v1 均可；不要填写具体接口路径。网页会分别拼接 OpenAI 兼容路径和 Gemini 原生路径。</div></div>
 <div class="field wide"><label for="apiKey">API Key</label><input id="apiKey" type="password" placeholder="粘贴 API Key" autocomplete="off"><label class="remember-row"><input id="rememberKey" type="checkbox"> 在此浏览器记住 API Key（仅个人设备建议开启）</label></div>
@@ -49,9 +102,11 @@ button.secondary{background:#f5f7fb;color:#34415b;border:1px solid var(--border)
 <input id="importSettingsFile" type="file" accept=".json,application/json" hidden>
 <span class="hint">适用于 Chrome 下载打开的本地 HTML；备份文件保存在手机“下载”目录。</span>
 </div>
+</div>
+</details>
 </section>
 <section class="panel chat"><div class="section-title">对话与生成结果</div><div class="messages" id="messages"><div class="welcome"><strong>你好，需要我帮你做什么？</strong>获取模型列表并选择模型后即可开始聊天。</div></div>
-<div class="attach-row"><button class="secondary" id="attachBtn" type="button">＋ 添加参考图</button><input id="imageFiles" type="file" accept="image/*" multiple hidden><span class="hint">Gemini 模式最多 4 张参考图，每张不超过 10MB；图片不会保存进聊天记录。</span></div><div class="attach-preview" id="attachPreview"></div><form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
+<div class="attach-row"><button class="secondary attach-main" id="attachBtn" type="button">＋ 上传要修改的图片</button><input id="imageFiles" type="file" accept="image/*" multiple hidden><span class="hint">选图后自动切换 Gemini；支持最多 4 张图片，每张不超过 10MB。</span></div><div class="attach-preview" id="attachPreview"></div><form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
 <div class="note" id="saveNote">设置保存在此网站的浏览器存储中。API Key 默认不保存；只有开启“记住 API Key”才会保存在本机浏览器。请勿在公共设备使用。浏览器跨域请求是否可用取决于服务商的 CORS 设置。</div></section>
 </main>
 <script>
@@ -109,6 +164,7 @@ function restoreHistory(){
  }catch(e){}
 }
 restoreSettings();
+if(safeStoreGet(SAVE_KEY))$('settingsDetails').open=false;
 restoreHistory();
 CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el)el.addEventListener('change',saveSettings);if(el&&['baseUrl','manualModel','temperature','maxTokens','systemPrompt'].includes(id))el.addEventListener('input',saveSettings)});
 $('modelSelect').addEventListener('change',()=>rememberModelForMode());
@@ -259,9 +315,44 @@ $('testBtn').onclick=async()=>{
 };
 
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(new Error('读取图片失败'));reader.readAsDataURL(file)})}
-function renderPendingImages(){const box=$('attachPreview');box.replaceChildren();state.pendingImages.forEach((item,index)=>{const wrap=document.createElement('div');wrap.className='attach-thumb';const img=document.createElement('img');img.src=item.dataUrl;img.alt=item.name;const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.setAttribute('aria-label','移除图片');remove.onclick=()=>{state.pendingImages.splice(index,1);renderPendingImages()};wrap.append(img,remove);box.append(wrap)})}
+function renderPendingImages(){
+ const box=$('attachPreview');box.replaceChildren();
+ if(state.pendingImages.length){const label=document.createElement('div');label.className='attach-caption';label.textContent='本次修改使用的原图（'+state.pendingImages.length+'/4）';box.append(label)}
+ state.pendingImages.forEach((item,index)=>{
+  const wrap=document.createElement('div');wrap.className='attach-thumb';
+  const img=document.createElement('img');img.src=item.dataUrl;img.alt=item.name;
+  const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.setAttribute('aria-label','移除图片');
+  remove.onclick=()=>{state.pendingImages.splice(index,1);renderPendingImages()};
+  const name=document.createElement('span');name.className='attach-name';name.textContent=item.name;
+  wrap.append(img,remove,name);box.append(wrap);
+ });
+}
 $('attachBtn').addEventListener('click',()=>$('imageFiles').click());
-$('imageFiles').addEventListener('change',async()=>{const files=Array.from($('imageFiles').files||[]);$('imageFiles').value='';for(const file of files){if(state.pendingImages.length>=4){status('最多添加 4 张参考图');break}if(!file.type.startsWith('image/'))continue;if(file.size>10*1024*1024){status('图片超过 10MB，已跳过：'+file.name);continue}try{const dataUrl=await fileToDataUrl(file);state.pendingImages.push({name:file.name,mimeType:file.type||'image/jpeg',dataUrl,base64:dataUrl.split(',')[1]||''})}catch(e){status(e.message)}}renderPendingImages();if(state.pendingImages.length)status('已添加 '+state.pendingImages.length+' 张参考图；请使用 Gemini 原生模式发送。')});
+$('imageFiles').addEventListener('change',async()=>{
+ const files=Array.from($('imageFiles').files||[]);$('imageFiles').value='';
+ let added=0;
+ for(const file of files){
+  if(state.pendingImages.length>=4){status('最多添加 4 张图片');break}
+  if(!file.type.startsWith('image/')){status('已跳过非图片文件：'+file.name);continue}
+  if(file.size>10*1024*1024){status('单张图片不能超过 10MB：'+file.name);continue}
+  const total=state.pendingImages.reduce((sum,item)=>sum+(item.size||0),0);
+  if(total+file.size>14*1024*1024){status('图片总大小不能超过 14MB，请减少图片数量或压缩图片。');break}
+  try{
+   const dataUrl=await fileToDataUrl(file);
+   state.pendingImages.push({name:file.name,mimeType:file.type||'image/jpeg',dataUrl,base64:dataUrl.split(',')[1]||'',size:file.size});
+   added++;
+  }catch(e){status('读取图片失败：'+e.message)}
+ }
+ renderPendingImages();
+ if(added){
+  if(!['v1beta','v1'].includes($('apiMode').value)){
+   $('apiMode').value='v1beta';
+   $('apiMode').dispatchEvent(new Event('change',{bubbles:true}));
+  }else{
+   status('已添加 '+state.pendingImages.length+' 张图片。输入修改要求后发送即可。');
+  }
+ }
+});
 function clearPendingImages(){state.pendingImages=[];renderPendingImages()}
 function addImageResult(src, label='生成的图片'){
  const box=document.createElement('div');box.className='image-result';
@@ -271,14 +362,25 @@ function addImageResult(src, label='生成的图片'){
  const caption=document.createElement('span');caption.textContent=label;caption.style.cssText='font-size:12px;color:var(--muted);overflow-wrap:anywhere';
  const btn=document.createElement('button');btn.type='button';btn.className='secondary';btn.textContent='保存图片';btn.style.cssText='padding:8px 11px;white-space:nowrap';
  btn.addEventListener('click',()=>{
+  if(!src.startsWith('data:')){window.open(src,'_blank','noopener');return;}
   const a=document.createElement('a');a.href=src;
   const mime=(src.match(/^data:([^;,]+)/)||[])[1]||'image/png';
   const ext=mime.split('/')[1]?.replace('jpeg','jpg')||'png';
   a.download='ai-studio-'+new Date().toISOString().replace(/[:.]/g,'-')+'.'+ext;
-  if(!src.startsWith('data:')){window.open(src,'_blank','noopener');return;}
   document.body.appendChild(a);a.click();a.remove();
  });
- actions.append(caption,btn);box.append(img,actions);$('messages').append(box);
+ const editBtn=document.createElement('button');editBtn.type='button';editBtn.className='secondary';editBtn.textContent='继续修改';
+ editBtn.style.cssText='padding:8px 11px;white-space:nowrap';
+ editBtn.addEventListener('click',()=>{
+  const match=src.match(/^data:([^;,]+);base64,(.+)$/);
+  if(!match){status('这张图片暂时不能直接继续编辑，请先保存后重新上传。');return}
+  state.pendingImages=[{name:'上一张生成图片',mimeType:match[1],dataUrl:src,base64:match[2],size:Math.floor(match[2].length*0.75)}];
+  renderPendingImages();
+  if(!['v1beta','v1'].includes($('apiMode').value)){$('apiMode').value='v1beta';$('apiMode').dispatchEvent(new Event('change',{bubbles:true}))}
+  $('prompt').focus();status('已把上一张结果设为原图，请输入下一步修改要求。');
+ });
+ actions.style.flexWrap='wrap';
+ actions.append(caption,btn,editBtn);box.append(img,actions);$('messages').append(box);
  box.scrollIntoView({behavior:'smooth',block:'end'});
 }
 function errorText(data, fallback='接口返回错误'){
@@ -331,9 +433,9 @@ $('chatForm').addEventListener('submit',async e=>{
  let h,endpoint;try{h=headers()}catch(err){status(err.message);return}
  const mode=$('apiMode').value;
  const referenceImages=state.pendingImages.slice();
- if(referenceImages.length&&!['v1beta','v1'].includes(mode)){status('参考图上传目前仅支持 Gemini 原生/兼容模式，请切换后发送。');return}
+ if(referenceImages.length&&!['v1beta','v1'].includes(mode)){status('请切换到 Gemini 原生模式后再修改图片。');return}
  if(mode!=='chat'){
-  addMessage('user','[图片生成] '+text);$('prompt').value='';$('sendBtn').disabled=true;
+  addMessage('user',(referenceImages.length?'[图片修改] ':'[图片生成] ')+text+(referenceImages.length?'（已附 '+referenceImages.length+' 张原图）':''));$('prompt').value='';$('sendBtn').disabled=true;
   try{await generateImage(text,model,referenceImages);clearPendingImages()}
   catch(err){addMessage('assistant','图片生成失败：'+err.message);status('图片生成失败：'+err.message)}
   finally{$('sendBtn').disabled=false;$('prompt').focus()}
