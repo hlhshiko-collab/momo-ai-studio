@@ -1,4 +1,4 @@
-const CACHE='momo-ai-studio-v4';
+const CACHE='momo-ai-studio-v5';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(
