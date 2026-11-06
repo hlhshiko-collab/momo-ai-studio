@@ -136,10 +136,26 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 .quota-manual-fields label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--muted);min-width:0}
 .quota-manual-fields input{width:100%;min-width:0;border:1px solid var(--border);border-radius:9px;padding:9px;font-size:14px;background:#fff;color:var(--text)}
 @media(max-width:480px){.quota-manual-fields{grid-template-columns:1fr}}
+/* v14 多会话管理 */
+.session-open-btn{padding:8px 11px;white-space:nowrap;font-size:13px}
+.session-backdrop{position:fixed;inset:0;background:rgba(20,28,44,.38);z-index:10000;opacity:0;visibility:hidden;transition:opacity .2s}
+.session-drawer{position:fixed;z-index:10001;inset:0 auto 0 0;width:min(340px,88vw);background:#fff;border-right:1px solid var(--border);box-shadow:12px 0 40px rgba(20,30,50,.16);padding:16px;display:flex;flex-direction:column;gap:12px;transform:translateX(-105%);transition:transform .22s ease;overflow:auto;overscroll-behavior:contain}
+body.sessions-open .session-backdrop{opacity:1;visibility:visible}
+body.sessions-open .session-drawer{transform:translateX(0)}
+.session-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.session-drawer-head strong{font-size:18px}
+.session-new-btn{width:100%;background:linear-gradient(135deg,var(--accent),#6c6cf5)}
+.session-list{display:flex;flex-direction:column;gap:7px;overflow:auto;min-height:80px}
+.session-item{display:flex;align-items:center;gap:6px;padding:9px;border:1px solid var(--border);border-radius:12px;background:#fafbfe}
+.session-item.active{border-color:#8da1e8;background:#f0f3ff}
+.session-select{flex:1;min-width:0;background:transparent!important;color:var(--text)!important;border:0!important;box-shadow:none!important;text-align:left;padding:4px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650}
+.session-meta{display:block;font-size:10px;color:var(--muted);font-weight:400}
+.session-mini{padding:6px 8px!important;font-size:12px;box-shadow:none!important;white-space:nowrap}
+.session-drawer-foot{margin-top:auto;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.5}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">按后台总额度校准 v13</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
-<section class="panel settings-panel">
+<header><div class="brandline"><button class="secondary session-open-btn" id="sessionOpenBtn" type="button">☰ 会话</button><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">多会话管理 v14</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<div class="session-backdrop" id="sessionBackdrop"></div><aside class="session-drawer" id="sessionDrawer" aria-label="会话列表"><div class="session-drawer-head"><strong>我的会话</strong><button class="secondary" id="sessionCloseBtn" type="button">关闭</button></div><button id="newSessionBtn" type="button" class="session-new-btn">＋ 新建会话</button><div id="sessionList" class="session-list"></div><div class="session-drawer-foot">会话记录保存在当前浏览器。API Key 和连接设置仍由全局设置管理。</div></aside><section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
 <div class="settings-content">
@@ -221,29 +237,25 @@ function restoreSettings(){
   if(cfg.rememberKey&&typeof cfg.apiKey==='string')$('apiKey').value=cfg.apiKey;
  }catch(e){}
 }
-function saveHistory(){
- try{
-  const messages=[];
-  document.querySelectorAll('#messages .msg').forEach(el=>{
-   const role=el.classList.contains('user')?'user':'assistant';
-   const body=el.querySelector('div:last-child');
-   if(body)messages.push({role,content:body.textContent||''});
-  });
-  safeStoreSet(CHAT_KEY,JSON.stringify(messages.slice(-80)));
- }catch(e){}
-}
-function restoreHistory(){
- try{
-  const raw=safeStoreGet(CHAT_KEY);if(!raw)return;
-  const items=JSON.parse(raw);if(!Array.isArray(items)||!items.length)return;
-  const valid=items.filter(item=>item&&['user','assistant'].includes(item.role)&&typeof item.content==='string').slice(-80);
-  if(!valid.length)return;
-  // 之前版本只把消息画回页面，没有恢复到 state.messages，导致新问题无法引用旧上下文。
-  state.messages=valid.map(item=>({role:item.role,content:item.content}));
-  $('messages').replaceChildren();
-  valid.forEach(item=>addMessage(item.role,item.content));
- }catch(e){}
-}
+const SESSION_KEY='momo_ai_studio_sessions_v14';
+let sessions=[],activeSessionId='';
+const sessionDomCache=new Map();
+function makeSession(title='新会话'){return{id:'s_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),title,createdAt:Date.now(),updatedAt:Date.now(),messages:[]}}
+function extractMessages(){const out=[];document.querySelectorAll('#messages .msg').forEach(el=>{const role=el.classList.contains('user')?'user':'assistant';const body=el.querySelector('div:last-child');if(body)out.push({role,content:body.textContent||''})});return out.slice(-100)}
+function persistSessions(){try{safeStoreSet(SESSION_KEY,JSON.stringify({version:1,activeSessionId,sessions:sessions.slice(0,40).map(x=>({id:x.id,title:x.title,createdAt:x.createdAt,updatedAt:x.updatedAt,messages:(x.messages||[]).slice(-100)}))}))}catch(e){$('saveNote').textContent='会话保存空间不足，请导出重要内容后删除旧会话。'}}
+function renderSessionList(){const list=$('sessionList');if(!list)return;list.replaceChildren();sessions.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));sessions.forEach(session=>{const row=document.createElement('div');row.className='session-item'+(session.id===activeSessionId?' active':'');const select=document.createElement('button');select.type='button';select.className='session-select';const title=document.createElement('span');title.textContent=session.title||'新会话';const meta=document.createElement('span');meta.className='session-meta';meta.textContent=(session.messages||[]).length+' 条消息 · '+new Date(session.updatedAt||Date.now()).toLocaleDateString('zh-CN');select.append(title,meta);select.addEventListener('click',()=>switchSession(session.id));const rename=document.createElement('button');rename.type='button';rename.className='secondary session-mini';rename.textContent='改名';rename.addEventListener('click',()=>renameSession(session.id));const remove=document.createElement('button');remove.type='button';remove.className='secondary session-mini';remove.textContent='删';remove.addEventListener('click',()=>deleteSession(session.id));row.append(select,rename,remove);list.append(row)})}
+function saveHistory(){try{if(!activeSessionId)return;const session=sessions.find(x=>x.id===activeSessionId);if(!session)return;session.messages=extractMessages();session.updatedAt=Date.now();if(session.title==='新会话'){const first=session.messages.find(m=>m.role==='user'&&m.content.trim());if(first)session.title=first.content.trim().replace(/^\[(图片修改|图片生成|文件提问)\]\s*/,'').slice(0,28)}sessionDomCache.set(activeSessionId,$('messages').cloneNode(true));persistSessions();renderSessionList()}catch(e){}}
+function renderSessionMessages(session){const target=$('messages');target.replaceChildren();const cached=sessionDomCache.get(session.id);if(cached){Array.from(cached.childNodes).forEach(node=>target.append(node.cloneNode(true)));return}const items=(session.messages||[]).slice(-100);if(!items.length){const w=document.createElement('div');w.className='welcome';const strong=document.createElement('strong');strong.textContent='新的会话';w.append(strong,document.createTextNode('可以开始聊天、生成或修改图片。'));target.append(w);return}items.forEach(item=>addMessage(item.role,item.content))}
+function switchSession(id){if(id===activeSessionId)return;saveHistory();const next=sessions.find(x=>x.id===id);if(!next)return;activeSessionId=id;state.messages=(next.messages||[]).map(x=>({role:x.role,content:x.content}));renderSessionMessages(next);persistSessions();renderSessionList();document.body.classList.remove('sessions-open')}
+function createSession(){saveHistory();const session=makeSession();sessions.unshift(session);activeSessionId=session.id;state.messages=[];$('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const strong=document.createElement('strong');strong.textContent='新的会话';w.append(strong,document.createTextNode('可以开始聊天、生成或修改图片。'));$('messages').append(w);persistSessions();renderSessionList();document.body.classList.remove('sessions-open');$('prompt').focus()}
+function renameSession(id){const session=sessions.find(x=>x.id===id);if(!session)return;const name=prompt('请输入新的会话名称',session.title||'新会话');if(name===null)return;const trimmed=name.trim();if(!trimmed){alert('会话名称不能为空。');return}session.title=trimmed.slice(0,50);session.updatedAt=Date.now();persistSessions();renderSessionList()}
+function deleteSession(id){const session=sessions.find(x=>x.id===id);if(!session)return;if(!confirm('确定删除会话「'+(session.title||'新会话')+'」吗？此操作不可撤销。'))return;sessions=sessions.filter(x=>x.id!==id);sessionDomCache.delete(id);if(!sessions.length)sessions=[makeSession()];if(activeSessionId===id){activeSessionId=sessions[0].id;state.messages=(sessions[0].messages||[]).map(x=>({role:x.role,content:x.content}));renderSessionMessages(sessions[0])}persistSessions();renderSessionList()}
+function initSessions(){try{const raw=safeStoreGet(SESSION_KEY);if(raw){const data=JSON.parse(raw);if(Array.isArray(data.sessions))sessions=data.sessions.filter(x=>x&&typeof x.id==='string').map(x=>({...x,messages:Array.isArray(x.messages)?x.messages.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').slice(-100):[]}));activeSessionId=data.activeSessionId||''}if(!sessions.length){let legacy=[];try{const old=JSON.parse(safeStoreGet(CHAT_KEY)||'[]');if(Array.isArray(old))legacy=old.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').slice(-100)}catch(e){}const first=makeSession(legacy.find(m=>m.role==='user')?.content?.slice(0,28)||'旧聊天记录');first.messages=legacy;sessions=[first];activeSessionId=first.id}if(!sessions.some(x=>x.id===activeSessionId))activeSessionId=sessions[0]?.id||'';if(!activeSessionId){const first=makeSession();sessions=[first];activeSessionId=first.id}const current=sessions.find(x=>x.id===activeSessionId);state.messages=(current.messages||[]).map(x=>({role:x.role,content:x.content}));renderSessionMessages(current);persistSessions();renderSessionList()}catch(e){console.warn('会话初始化失败',e)}}
+$('sessionOpenBtn').addEventListener('click',()=>document.body.classList.add('sessions-open'));
+$('sessionCloseBtn').addEventListener('click',()=>document.body.classList.remove('sessions-open'));
+$('sessionBackdrop').addEventListener('click',()=>document.body.classList.remove('sessions-open'));
+$('newSessionBtn').addEventListener('click',createSession);
+function restoreHistory(){initSessions()}
 restoreSettings();
 if(safeStoreGet(SAVE_KEY))$('settingsDetails').open=false;
 restoreHistory();
@@ -843,7 +855,7 @@ $('chatForm').addEventListener('submit',async e=>{
  }catch(err){answerEl.textContent='调用失败：'+explainApiError(err.message);finishProgress(tracker,false,explainApiError(err.message));status('调用失败：'+explainApiError(err.message))}
  finally{$('sendBtn').disabled=false;$('prompt').focus()}
 });
-$('clearBtn').onclick=()=>{state.messages=[];try{localStorage.removeItem(CHAT_KEY)}catch(e){};$('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const s=document.createElement('strong');s.textContent='对话已清空';w.append(s,document.createTextNode('可以开始新的对话。'));$('messages').append(w);status('对话历史已清空。')};
+$('clearBtn').onclick=()=>{if(!confirm('清空当前会话的全部对话内容？其他会话不会受影响。'))return;state.messages=[];sessionDomCache.delete(activeSessionId);$('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const title=document.createElement('strong');title.textContent='对话已清空';w.append(title,document.createTextNode('当前会话已清空，可以重新开始。'));$('messages').append(w);const session=sessions.find(x=>x.id===activeSessionId);if(session){session.messages=[];session.title='新会话';session.updatedAt=Date.now()}persistSessions();renderSessionList();status('当前会话已清空，其他会话保持不变。')};
 
 
 // 对 content://downloads/... 这种本地打开方式，提供独立的 JSON 备份/恢复，不依赖浏览器存储是否保留。
