@@ -162,6 +162,7 @@ body.sessions-open .session-drawer{transform:translateX(0)}
 .export-controls select{padding:8px 5px;font-size:12px}
 .export-controls button{padding:8px 5px;font-size:12px;white-space:nowrap}
 .session-list,.favorite-list{display:flex;flex-direction:column;gap:8px;overflow:auto;min-height:60px}
+.session-list[hidden],.favorite-list[hidden]{display:none}
 .session-hit{display:block;width:100%;margin-top:5px;padding:7px 9px!important;text-align:left;font-size:11px;font-weight:450;line-height:1.4;background:#f4f6fb!important;color:#4b5870!important;box-shadow:none!important;border:1px solid var(--border)!important}
 .session-item.archived{opacity:.82}
 .favorite-item{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fafbfe}
@@ -393,7 +394,7 @@ function renderFavoriteList(){
   const excerpt=document.createElement('div');excerpt.className='favorite-excerpt';excerpt.textContent=(fav.content||'').slice(0,420);
   const actions=document.createElement('div');actions.className='favorite-actions';
   const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='取消收藏';
-  remove.addEventListener('click',()=>{favorites=favorites.filter(x=>x.id!==fav.id);persistFavorites();renderFavoriteList();const btn=Array.from($('messages').querySelectorAll('.msg-favorite')).find(x=>x.dataset.messageId===fav.messageId);if(btn)updateFavoriteButton(btn,false)});
+  remove.addEventListener('click',()=>{favorites=favorites.filter(x=>x.id!==fav.id);persistFavorites();renderFavoriteList();const sync=root=>Array.from(root.querySelectorAll('.msg-favorite')).filter(x=>x.dataset.messageId===fav.messageId).forEach(x=>updateFavoriteButton(x,false));sync($('messages'));sessionDomCache.forEach(nodes=>nodes.forEach(node=>{if(node.nodeType===1){if(node.matches('.msg')){const b=node.querySelector('.msg-favorite');if(b&&b.dataset.messageId===fav.messageId)updateFavoriteButton(b,false)}else sync(node)}}))});
   actions.append(remove);item.append(open,excerpt,actions);box.append(item);
  });
 }
