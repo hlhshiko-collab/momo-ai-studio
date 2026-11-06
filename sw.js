@@ -1,4 +1,4 @@
-const CACHE='momo-ai-studio-v13';
+const CACHE='momo-ai-studio-v14';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg'];
 const INDEX_CACHE_KEY=new URL('./index.html',self.registration.scope).toString();
 
