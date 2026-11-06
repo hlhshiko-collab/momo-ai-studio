@@ -138,7 +138,7 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 @media(max-width:480px){.quota-manual-fields{grid-template-columns:1fr}}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">人民币换算可配置 v12</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">按后台总额度校准 v13</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -149,12 +149,11 @@ body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;overscroll-be
 <div class="field wide key-usage-panel">
  <div class="key-usage-head"><div><strong>Key 用量管理</strong><span>查询当前 API Key 的已用额度与剩余额度</span></div><button id="queryKeyUsageBtn" class="secondary" type="button">查询用量</button></div>
  <div class="quota-manual-config">
-  <div class="quota-manual-title">人民币换算设置</div>
+  <div class="quota-manual-title">人民币额度校准</div>
   <div class="quota-manual-fields">
-   <label>每美元对应额度点数<input id="quotaPerUsdInput" type="number" min="1" step="1" inputmode="numeric" value="500000"></label>
-   <label>1 美元兑换人民币<input id="usdToRmbInput" type="number" min="0.0001" step="0.0001" inputmode="decimal" placeholder="例如 7.20"></label>
+   <label>该 Key 后台显示的总额度（RMB）<input id="keyTotalRmbInput" type="number" min="0.01" step="0.01" inputmode="decimal" value="5.00"></label>
   </div>
-  <div class="key-usage-note">优先使用服务商返回的换算参数；未返回时使用这里填写的数值。New API 常见默认点数为 500,000，但请以服务商实际配置为准。汇率请按服务商计费规则填写。</div>
+  <div class="key-usage-note">填入 Key 管理后台显示的总额度，例如截图中的 ¥5.00。网站会按 API 返回的额度点数占比折算人民币，无需猜测汇率或依赖 /api/status。此数值只保存在当前浏览器。</div>
  </div>
  <div id="keyUsageResult" class="key-usage-result"><span class="key-usage-empty">填写 API Key 后，点击「查询用量」查看余额。</span></div>
 </div>
@@ -636,43 +635,32 @@ function formatQuotaRmb(rawQuota,currency){
  return '¥'+((points/quotaPerUnit)*usdToRmb).toFixed(2);
 }
 function loadQuotaManualConfig(){
- try{
-  const saved=JSON.parse(localStorage.getItem('momoQuotaRmbConfig')||'{}');
-  if(saved.quotaPerUnit)$('quotaPerUsdInput').value=saved.quotaPerUnit;
-  if(saved.usdToRmb)$('usdToRmbInput').value=saved.usdToRmb;
- }catch(e){}
+ try{const saved=JSON.parse(localStorage.getItem('momoQuotaRmbConfig')||'{}');if(saved.totalRmb)$('keyTotalRmbInput').value=saved.totalRmb}catch(e){}
 }
 function saveQuotaManualConfig(){
- const config={quotaPerUnit:Number($('quotaPerUsdInput').value),usdToRmb:Number($('usdToRmbInput').value)};
+ const config={totalRmb:Number($('keyTotalRmbInput').value)};
  try{localStorage.setItem('momoQuotaRmbConfig',JSON.stringify(config))}catch(e){}
  return config;
 }
+function formatQuotaRmb(rawQuota,totalRaw,totalRmb){
+ const points=Number(rawQuota),base=Number(totalRaw),rmb=Number(totalRmb);
+ if(!Number.isFinite(points)||!Number.isFinite(base)||base<=0||!Number.isFinite(rmb)||rmb<=0)return null;
+ return '¥'+(points/base*rmb).toFixed(2);
+}
 function renderKeyUsage(data,currency){
  const box=$('keyUsageResult');box.replaceChildren();
- const manual=saveQuotaManualConfig();
- const quotaPerUnit=Number(currency?.quota_per_unit)||manual.quotaPerUnit;
- const usdToRmb=Number(currency?.usd_exchange_rate)||manual.usdToRmb;
- const canConvert=Number.isFinite(quotaPerUnit)&&quotaPerUnit>0&&Number.isFinite(usdToRmb)&&usdToRmb>0;
- const rows=[];
- const item=(label,value)=>rows.push({label,value});
+ const manual=saveQuotaManualConfig(),totalRaw=Number(data.total_granted),totalRmb=Number(manual.totalRmb);
+ const canConvert=Number.isFinite(totalRaw)&&totalRaw>0&&Number.isFinite(totalRmb)&&totalRmb>0;
+ const rows=[],item=(label,value)=>rows.push({label,value});
  item('Key 名称',data.name||'当前 Key');
- item('累计已消耗',canConvert?formatQuotaRmb(data.total_used,currency):'暂不可换算');
- item('剩余额度',data.unlimited_quota?'无限额度':(canConvert?formatQuotaRmb(data.total_available,currency):'暂不可换算'));
- item('总额度',data.unlimited_quota?'无限额度':(canConvert?formatQuotaRmb(data.total_granted,currency):'暂不可换算'));
- if(data.expires_at)item('有效期至',new Date(Number(data.expires_at)*1000).toLocaleString('zh-CN'));
- else item('有效期','长期有效');
- if(data.user_quota){
-  item('账户剩余额度',canConvert?formatQuotaRmb(data.user_quota.total_available,currency):'暂不可换算');
-  item('账户已用额度',canConvert?formatQuotaRmb(data.user_quota.total_used,currency):'暂不可换算');
- }
+ item('累计已消耗',canConvert?formatQuotaRmb(data.total_used,totalRaw,totalRmb)||'暂不可换算':'暂不可换算');
+ item('剩余额度',data.unlimited_quota?'无限额度':(canConvert?formatQuotaRmb(data.total_available,totalRaw,totalRmb)||'暂不可换算':'暂不可换算'));
+ item('总额度',data.unlimited_quota?'无限额度':(canConvert?'¥'+totalRmb.toFixed(2):'暂不可换算'));
+ if(data.expires_at)item('有效期至',new Date(Number(data.expires_at)*1000).toLocaleString('zh-CN'));else item('有效期','长期有效');
  const grid=document.createElement('div');grid.className='key-usage-grid';
  rows.forEach(row=>{const cell=document.createElement('div');cell.className='key-usage-cell';const label=document.createElement('span');label.textContent=row.label;const value=document.createElement('strong');value.textContent=row.value;cell.append(label,value);grid.append(cell)});
  const note=document.createElement('div');note.className='key-usage-note';
- if(canConvert){
-  note.textContent='统一按人民币显示。换算依据：额度点数 ÷ '+quotaPerUnit.toLocaleString('zh-CN')+' × '+usdToRmb.toFixed(4)+'（1 USD = ¥'+usdToRmb.toFixed(4)+'）。参数优先读取服务商配置；缺失时使用本机手动设置。';
- }else{
-  note.textContent='已获取 Key 额度，但未能读取服务商的额度换算参数（quota_per_unit / usd_exchange_rate），因此暂不能准确换算成人民币。请检查 API 状态接口或联系服务商。';
- }
+ note.textContent=canConvert?'按后台总额度 ¥'+totalRmb.toFixed(2)+' 校准，并依据 API 返回的剩余额度/总额度比例计算。后台总额度变化时，请同步修改上方金额。':'已获取 Key 额度，但无法换算。请填写后台显示的总额度，并确认 API 返回 total_granted。';
  box.append(grid,note);
 }
 async function queryKeyUsage(){
@@ -699,7 +687,7 @@ async function queryKeyUsage(){
    const statusRes=await fetch(root+'/api/status',{method:'GET',headers:{'Accept':'application/json'},cache:'no-store'});
    if(statusRes.ok)statusBody=await statusRes.json();
   }catch(e){console.warn('无法读取额度展示设置，将显示原始额度点数。',e)}
-  renderKeyUsage(usageBody.data,statusBody?.data||{});
+  window.lastKeyUsageData=usageBody.data;renderKeyUsage(usageBody.data,statusBody?.data||{});
   status('Key 用量查询成功：'+(usageBody.data.name||'当前 Key'));
  }catch(err){
   const box=$('keyUsageResult');box.replaceChildren();
@@ -709,8 +697,7 @@ async function queryKeyUsage(){
 }
 $('queryKeyUsageBtn').addEventListener('click',queryKeyUsage);
 loadQuotaManualConfig();
-$('quotaPerUsdInput').addEventListener('change',()=>{saveQuotaManualConfig();});
-$('usdToRmbInput').addEventListener('change',()=>{saveQuotaManualConfig();});
+$('keyTotalRmbInput').addEventListener('change',()=>{saveQuotaManualConfig();if(window.lastKeyUsageData)renderKeyUsage(window.lastKeyUsageData,{});});
 
 async function generateImage(prompt, model, referenceImages=[], files=[], tracker=null){
  const mode=$('apiMode').value;
