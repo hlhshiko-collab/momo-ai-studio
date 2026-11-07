@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light"><meta name="theme-color" content="#f5f7fb"><meta name="description" content="个人使用的墨墨 API 聊天与 Gemini 图片生成工具"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><title>AI Studio · 墨墨 API · v15.2</title>
+<meta name="color-scheme" content="light"><meta name="theme-color" content="#f5f7fb"><meta name="description" content="个人使用的墨墨 API 聊天与 Gemini 图片生成工具"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><title>AI Studio · 墨墨 API · v15.3</title>
 <style>
 :root{color-scheme:light;--bg:#f5f7fb;--panel:#fff;--panel2:#f1f4fa;--text:#202638;--muted:#687386;--accent:#5b75d6;--accent2:#7893e8;--border:#e1e6ef;--good:#21865f}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
@@ -182,7 +182,7 @@ button.msg-copy.copied{background:#e9f7ef!important;color:#21865f!important;bord
 @media(max-width:560px){.session-drawer{padding:13px}.session-data-tools{padding-bottom:8px}.session-item{gap:4px;padding:7px}.session-mini{padding:6px!important;font-size:11px!important}}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><button class="secondary session-open-btn" id="sessionOpenBtn" type="button">☰ 会话</button><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">资料管理 v15.2</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><button class="secondary session-open-btn" id="sessionOpenBtn" type="button">☰ 会话</button><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">资料管理 v15.3</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <div class="session-backdrop" id="sessionBackdrop"></div><aside class="session-drawer" id="sessionDrawer" aria-label="会话与资料管理"><div class="session-drawer-head"><strong>会话与资料管理</strong><button class="secondary" id="sessionCloseBtn" type="button">关闭</button></div><button id="newSessionBtn" type="button" class="session-new-btn">＋ 新建会话</button><input id="sessionSearch" class="session-search" type="search" placeholder="搜索所有会话和消息…" autocomplete="off"><div class="session-tools"><button class="secondary" id="archivedViewBtn" type="button">查看归档</button><button class="secondary" id="favoritesViewBtn" type="button">收藏夹</button></div><div id="sessionList" class="session-list"></div><div id="favoriteList" class="favorite-list" hidden></div><div class="session-data-tools"><div class="export-controls"><select id="sessionExportFormat" aria-label="导出格式"><option value="md">Markdown</option><option value="txt">TXT 文本</option></select><button class="secondary" id="exportCurrentBtn" type="button">导出当前</button><button class="secondary" id="exportAllBtn" type="button">导出全部</button></div><div class="backup-controls"><button class="secondary" id="backupDataBtn" type="button">备份所有资料</button><button class="secondary" id="restoreDataBtn" type="button">恢复资料备份</button><input id="restoreDataFile" type="file" accept=".json,application/json" hidden></div></div><div class="session-drawer-foot">记录保存在当前浏览器。资料备份不包含 API Key；图片文件与生成图片不会写入备份，请单独下载保存。</div></aside><section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -242,6 +242,8 @@ const state={messages:[],modelIds:[],pendingImages:[],pendingFiles:[]};
 const SAVE_KEY='momo_api_chat_v5_settings';
 const CHAT_KEY='momo_api_chat_v5_history';
 const CONFIG_FIELDS=['baseUrl','apiMode','aspectRatio','imageSize','modelSelect','manualModel','temperature','maxTokens','systemPrompt'];
+// API 地址与 Key 为全局设置；调用模式、模型和生成参数按会话独立保存。
+const SESSION_CONFIG_FIELDS=['apiMode','aspectRatio','imageSize','temperature','maxTokens','systemPrompt'];
 function safeStoreGet(key){try{return localStorage.getItem(key)}catch(e){return null}}
 function safeStoreSet(key,value){try{localStorage.setItem(key,value);return true}catch(e){return false}}
 function saveSettings(){
@@ -271,7 +273,47 @@ const FAVORITES_KEY='momo_ai_studio_favorites_v1';
 let sessions=[],activeSessionId='',favorites=[];
 let archivedView=false,favoritesView=false,sessionSearchText='';
 const sessionDomCache=new Map();
-function makeSession(title='新会话'){return{id:'s_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),title,createdAt:Date.now(),updatedAt:Date.now(),messages:[]}}
+function normalizeSessionConfig(raw,fallback=null){
+ const source=raw&&typeof raw==='object'?raw:(fallback&&typeof fallback==='object'?fallback:{});
+ const config={};
+ SESSION_CONFIG_FIELDS.forEach(id=>{
+  const value=source[id];
+  config[id]=typeof value==='string'?value:(typeof fallback?.[id]==='string'?fallback[id]:($(id)?.value||''));
+ });
+ const choices={},input=source.modelChoices&&typeof source.modelChoices==='object'?source.modelChoices:(fallback?.modelChoices||{});
+ ['chat','v1beta','v1','images'].forEach(mode=>{
+  const item=input[mode];
+  if(item&&typeof item.id==='string'&&item.id.trim())choices[mode]={id:item.id.trim(),manual:item.manual===true};
+ });
+ config.modelChoices=choices;return config;
+}
+function createSessionConfigSnapshot(){
+ const config={};SESSION_CONFIG_FIELDS.forEach(id=>{const el=$(id);config[id]=el?el.value:''});
+ const saved=readSavedSettings(),choices={};
+ Object.entries(saved.modelsByMode||{}).forEach(([mode,item])=>{
+  if(['chat','v1beta','v1','images'].includes(mode)&&item&&typeof item.id==='string'&&item.id.trim())choices[mode]={id:item.id.trim(),manual:item.manual===true};
+ });
+ const mode=$('apiMode')?.value||'chat',manual=$('manualModel')?.value.trim()||'',selected=$('modelSelect')?.value.trim()||'',id=manual||selected;
+ if(id)choices[mode]={id,manual:!!manual};config.modelChoices=choices;return config;
+}
+function saveActiveSessionConfig({captureModel=true,mode=$('apiMode').value,persist=true}={}){
+ const session=sessions.find(x=>x.id===activeSessionId);if(!session)return;
+ const config=normalizeSessionConfig(session.config,createSessionConfigSnapshot());
+ SESSION_CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el)config[id]=el.value});
+ if(captureModel){const manual=$('manualModel').value.trim(),selected=$('modelSelect').value.trim(),id=manual||selected;if(id)config.modelChoices[mode]={id,manual:!!manual}}
+ session.config=config;if(persist)persistSessions();
+}
+function applySessionConfig(session){
+ if(!session)return;
+ session.config=normalizeSessionConfig(session.config,createSessionConfigSnapshot());
+ const config=session.config,mode=config.apiMode||'chat';
+ SESSION_CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el)el.value=config[id]});
+ const saved=config.modelChoices?.[mode]||readSavedSettings().modelsByMode?.[mode];
+ $('manualModel').value=saved?.manual&&saved.id?saved.id:'';
+ $('modelSelect').replaceChildren(new Option('正在恢复此会话的模型…',''));
+ return mode;
+}
+function makeSession(title='新会话'){return{id:'s_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),title,createdAt:Date.now(),updatedAt:Date.now(),messages:[],config:createSessionConfigSnapshot()}}
 function makeMessageId(){return'm_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8)}
 function extractMessages(){
  const out=[];
@@ -286,7 +328,7 @@ function extractMessages(){
  return out.slice(-100);
 }
 function persistSessions(){
- try{safeStoreSet(SESSION_KEY,JSON.stringify({version:2,activeSessionId,sessions:sessions.slice(0,40).map(x=>({id:x.id,title:x.title,createdAt:x.createdAt,updatedAt:x.updatedAt,archivedAt:x.archivedAt||null,messages:(x.messages||[]).slice(-100).map(m=>({id:m.id||makeMessageId(),createdAt:m.createdAt||Date.now(),role:m.role,content:m.content}))}))}));}
+ try{safeStoreSet(SESSION_KEY,JSON.stringify({version:3,activeSessionId,sessions:sessions.slice(0,40).map(x=>({id:x.id,title:x.title,createdAt:x.createdAt,updatedAt:x.updatedAt,archivedAt:x.archivedAt||null,config:normalizeSessionConfig(x.config),messages:(x.messages||[]).slice(-100).map(m=>({id:m.id||makeMessageId(),createdAt:m.createdAt||Date.now(),role:m.role,content:m.content}))}))}));}
  catch(e){$('saveNote').textContent='会话保存空间不足，请先导出重要内容或清理旧记录。'}
 }
 function persistFavorites(){
@@ -334,6 +376,7 @@ function saveHistory(){
  try{
   if(!activeSessionId)return;
   const session=sessions.find(x=>x.id===activeSessionId);if(!session)return;
+  saveActiveSessionConfig({captureModel:true,persist:false});
   session.messages=extractMessages();session.updatedAt=Date.now();
   if(session.title==='新会话'){
    const first=session.messages.find(m=>m.role==='user'&&m.content.trim());
@@ -356,7 +399,8 @@ function renderSessionMessages(session){
 function switchSession(id){
  if(id===activeSessionId)return;saveHistory();const next=sessions.find(x=>x.id===id);if(!next)return;
  activeSessionId=id;state.messages=(next.messages||[]).map(x=>({role:x.role,content:x.content}));
- renderSessionMessages(next);persistSessions();renderSessionList();document.body.classList.remove('sessions-open');
+ applySessionConfig(next);renderSessionMessages(next);activateModeModels($('apiMode').value,{autoFetch:true,quiet:true});
+ persistSessions();renderSessionList();document.body.classList.remove('sessions-open');
 }
 function createSession(){
  saveHistory();const session=makeSession();sessions.unshift(session);activeSessionId=session.id;state.messages=[];
@@ -377,7 +421,8 @@ function deleteSession(id){
  if(!sessions.length)sessions=[makeSession()];
  if(activeSessionId===id){
   const next=sessions.find(x=>!x.archivedAt)||sessions[0];activeSessionId=next.id;
-  state.messages=(next.messages||[]).map(x=>({role:x.role,content:x.content}));renderSessionMessages(next);
+  state.messages=(next.messages||[]).map(x=>({role:x.role,content:x.content}));
+  applySessionConfig(next);renderSessionMessages(next);activateModeModels($('apiMode').value,{autoFetch:true,quiet:true});
  }
  persistSessions();persistFavorites();renderFavoriteList();renderSessionList();
 }
@@ -386,7 +431,8 @@ function archiveSession(id){
  if(session.archivedAt){delete session.archivedAt;}else{session.archivedAt=Date.now();}
  if(activeSessionId===id&&session.archivedAt){
   let next=sessions.find(x=>x.id!==id&&!x.archivedAt);if(!next){next=makeSession();sessions.unshift(next);}
-  activeSessionId=next.id;state.messages=(next.messages||[]).map(x=>({role:x.role,content:x.content}));renderSessionMessages(next);
+  activeSessionId=next.id;state.messages=(next.messages||[]).map(x=>({role:x.role,content:x.content}));
+  applySessionConfig(next);renderSessionMessages(next);activateModeModels($('apiMode').value,{autoFetch:true,quiet:true});
  }
  persistSessions();renderSessionList();
 }
@@ -429,7 +475,7 @@ function initSessions(){
   const raw=safeStoreGet(SESSION_KEY)||safeStoreGet(LEGACY_SESSION_KEY);
   if(raw){
    const data=JSON.parse(raw);
-   if(Array.isArray(data.sessions))sessions=data.sessions.filter(x=>x&&typeof x.id==='string').map(x=>({...x,messages:Array.isArray(x.messages)?x.messages.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').slice(-100).map(m=>({...m,id:m.id||makeMessageId(),createdAt:Number(m.createdAt)||Date.now()})):[]}));
+   if(Array.isArray(data.sessions))sessions=data.sessions.filter(x=>x&&typeof x.id==='string').map(x=>({...x,config:normalizeSessionConfig(x.config,createSessionConfigSnapshot()),messages:Array.isArray(x.messages)?x.messages.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').slice(-100).map(m=>({...m,id:m.id||makeMessageId(),createdAt:Number(m.createdAt)||Date.now()})):[]}));
    activeSessionId=data.activeSessionId||'';
   }
   if(!sessions.length){
@@ -439,7 +485,7 @@ function initSessions(){
   if(!sessions.some(x=>x.id===activeSessionId))activeSessionId=sessions.find(x=>!x.archivedAt)?.id||sessions[0]?.id||'';
   if(!activeSessionId){const first=makeSession();sessions=[first];activeSessionId=first.id}
   try{const fav=JSON.parse(safeStoreGet(FAVORITES_KEY)||'{}');if(Array.isArray(fav.favorites))favorites=fav.favorites.filter(x=>x&&typeof x.id==='string'&&typeof x.sessionId==='string'&&typeof x.messageId==='string'&&typeof x.content==='string').slice(0,500)}catch(e){}
-  const current=sessions.find(x=>x.id===activeSessionId);state.messages=(current.messages||[]).map(x=>({role:x.role,content:x.content}));
+  const current=sessions.find(x=>x.id===activeSessionId);applySessionConfig(current);state.messages=(current.messages||[]).map(x=>({role:x.role,content:x.content}));
   renderSessionMessages(current);persistSessions();persistFavorites();renderSessionList();renderFavoriteList();
  }catch(e){console.warn('会话初始化失败',e)}
 }$('sessionOpenBtn').addEventListener('click',()=>document.body.classList.add('sessions-open'));
@@ -487,7 +533,7 @@ $('backupDataBtn').addEventListener('click',()=>{
  try{
   saveHistory();persistFavorites();
   const settings={};CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el)settings[id]=el.value});
-  const backup={app:'momo-ai-studio',backupVersion:1,exportedAt:new Date().toISOString(),sessions:sessions.map(x=>({id:x.id,title:x.title,createdAt:x.createdAt,updatedAt:x.updatedAt,archivedAt:x.archivedAt||null,messages:(x.messages||[]).slice(-100).map(m=>({id:m.id||makeMessageId(),createdAt:m.createdAt||Date.now(),role:m.role,content:m.content}))})),favorites:favorites.slice(0,500),settings};
+  const backup={app:'momo-ai-studio',backupVersion:1,exportedAt:new Date().toISOString(),sessions:sessions.map(x=>({id:x.id,title:x.title,createdAt:x.createdAt,updatedAt:x.updatedAt,archivedAt:x.archivedAt||null,config:normalizeSessionConfig(x.config,createSessionConfigSnapshot()),messages:(x.messages||[]).slice(-100).map(m=>({id:m.id||makeMessageId(),createdAt:m.createdAt||Date.now(),role:m.role,content:m.content}))})),favorites:favorites.slice(0,500),settings};
   downloadTextFile('AI-Studio-资料备份-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(backup,null,2),'application/json');
   status('资料备份已导出。文件不含 API Key，也不包含图片文件。');
  }catch(e){status('资料备份失败：'+e.message)}
@@ -502,6 +548,7 @@ $('restoreDataFile').addEventListener('change',async()=>{
   if(!confirm('将把备份中的会话和收藏合并到当前资料中；同 ID 会话以更新时间较新的记录为准。非敏感设置会恢复，当前 API Key 不会被读取、覆盖或导入。是否继续？'))return;
   const incoming=data.sessions.filter(x=>x&&typeof x.id==='string').slice(0,40).map(x=>({
    id:x.id,title:typeof x.title==='string'?x.title.slice(0,50):'导入会话',createdAt:Number(x.createdAt)||Date.now(),updatedAt:Number(x.updatedAt)||Date.now(),archivedAt:Number(x.archivedAt)||null,
+   config:x.config&&typeof x.config==='object'?normalizeSessionConfig(x.config):null,
    messages:Array.isArray(x.messages)?x.messages.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').slice(-100).map(m=>({id:typeof m.id==='string'?m.id:makeMessageId(),createdAt:Number(m.createdAt)||Date.now(),role:m.role,content:m.content.slice(0,100000)})):[]
   }));
   const map=new Map(sessions.map(x=>[x.id,x]));
@@ -515,7 +562,8 @@ $('restoreDataFile').addEventListener('change',async()=>{
    CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el&&typeof data.settings[id]==='string')el.value=data.settings[id]});
    saveSettings();
   }
-  const current=sessions.find(x=>x.id===activeSessionId);if(current){state.messages=(current.messages||[]).map(x=>({role:x.role,content:x.content}));renderSessionMessages(current)}
+  sessions.forEach(x=>{if(!x.config)x.config=createSessionConfigSnapshot()});
+  const current=sessions.find(x=>x.id===activeSessionId);if(current){applySessionConfig(current);state.messages=(current.messages||[]).map(x=>({role:x.role,content:x.content}));renderSessionMessages(current);activateModeModels($('apiMode').value,{autoFetch:true,quiet:true})}
   persistSessions();persistFavorites();renderSessionList();renderFavoriteList();
   status('资料恢复并合并成功。API Key 保持原样；如设置中没有 Key，请在连接设置里自行填写。');
  }catch(e){status('资料恢复失败：'+e.message)}
@@ -527,10 +575,12 @@ restoreSettings();
 if(safeStoreGet(SAVE_KEY))$('settingsDetails').open=false;
 restoreHistory();
 CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el)el.addEventListener('change',saveSettings);if(el&&['baseUrl','manualModel','temperature','maxTokens','systemPrompt'].includes(id))el.addEventListener('input',saveSettings)});
+SESSION_CONFIG_FIELDS.filter(id=>id!=='apiMode').forEach(id=>{const el=$(id);if(el){el.addEventListener('change',()=>saveActiveSessionConfig());if(['temperature','maxTokens','systemPrompt'].includes(id))el.addEventListener('input',()=>saveActiveSessionConfig())}});
 $('modelSelect').addEventListener('change',()=>rememberModelForMode());
 $('manualModel').addEventListener('input',()=>rememberModelForMode());
 $('rememberKey').addEventListener('change',saveSettings);
 $('apiKey').addEventListener('input',saveSettings);
+window.addEventListener('beforeunload',()=>saveActiveSessionConfig({captureModel:true,persist:true}));
 
 function cleanBase(){
  let v=$('baseUrl').value.trim().replace(/\/+$/,'');
@@ -649,10 +699,12 @@ function rememberModelForMode(mode=$('apiMode').value){
  const id=manual||$('modelSelect').value.trim();
  if(id)cfg.modelsByMode[mode]={id,manual:!!manual};
  safeStoreSet(SAVE_KEY,JSON.stringify(cfg));
+ saveActiveSessionConfig({captureModel:true,mode,persist:true});
 }
 function populateModelOptions(mode, ids){
  const sel=$('modelSelect');
- const saved=readSavedSettings().modelsByMode?.[mode];
+ const session=sessions.find(x=>x.id===activeSessionId);
+ const saved=session?.config?.modelChoices?.[mode]||readSavedSettings().modelsByMode?.[mode];
  sel.replaceChildren();
  if(!Array.isArray(ids)||!ids.length){
   sel.add(new Option('该模式暂无可用模型列表',''));
@@ -673,7 +725,7 @@ async function fetchModelList({quiet=false}={}){
  const btn=$('modelsBtn');
  try{
   btn.disabled=true;
-  const mode=$('apiMode').value;
+  const mode=$('apiMode').value,requestSessionId=activeSessionId;
   const key=$('apiKey').value.trim();
   if(!key)throw new Error('请先填写 API Key');
   const url=modelListUrl(mode);
@@ -693,8 +745,10 @@ async function fetchModelList({quiet=false}={}){
   const cfg=readSavedSettings();cfg.modelListsByMode=cfg.modelListsByMode||{};
   cfg.modelListsByMode[mode]={url,ids:unique,fetchedAt:Date.now()};
   safeStoreSet(SAVE_KEY,JSON.stringify(cfg));
-  populateModelOptions(mode,unique);saveSettings();
-  status((quiet?'已自动恢复':'获取成功')+'：'+unique.length+' 个模型。当前选择：'+(selectedModel()||'请选择模型'));
+  if(activeSessionId===requestSessionId&&$('apiMode').value===mode){
+   populateModelOptions(mode,unique);saveSettings();
+   status((quiet?'已自动恢复':'获取成功')+'：'+unique.length+' 个模型。当前选择：'+(selectedModel()||'请选择模型'));
+  }else if(!quiet){status('模型列表已缓存；当前会话或调用模式已变化，未覆盖当前选择。')}
   return true;
  }catch(e){
   status((quiet?'自动获取模型失败':'获取模型失败')+'：'+e.message+'。也可以手动填写模型 ID，或点击“获取当前模式模型列表”重试。');
@@ -712,7 +766,8 @@ function activateModeModels(mode,{autoFetch=true,quiet=false}={}){
   saveSettings();return;
  }
  $('modelSelect').replaceChildren(new Option('该模式没有缓存，正在准备获取模型…',''));
- const saved=cfg.modelsByMode?.[mode];$('manualModel').value=saved?.manual&&saved.id?saved.id:'';
+ const session=sessions.find(x=>x.id===activeSessionId);
+ const saved=session?.config?.modelChoices?.[mode]||cfg.modelsByMode?.[mode];$('manualModel').value=saved?.manual&&saved.id?saved.id:'';
  if(autoFetch&&$('apiKey').value.trim())fetchModelList({quiet});
  else if(!quiet)status('该模式暂时没有缓存模型。填写 API Key 后可自动获取，或点击“获取当前模式模型列表”。');
 }
@@ -1197,7 +1252,7 @@ $('importSettingsFile').addEventListener('change',async()=>{
 });
 
 $('apiMode').addEventListener('change',()=>{
- const mode=$('apiMode').value;saveSettings();
+ const mode=$('apiMode').value;saveSettings();saveActiveSessionConfig({captureModel:false});
  if(mode==='chat')status('文字聊天：POST '+base()+'/chat/completions；模型列表：GET '+base()+'/models');
  else if(mode==='images')status('OpenAI 图片接口：POST '+base()+'/images/generations。New API 文档参数主要对应 DALL·E / GPT Image，不建议用来调用 Nano Banana。');
  else status('Gemini 图片生成：POST '+originBase()+'/'+mode+'/models/{model}:generateContent；Gemini 模型列表使用 GET '+originBase()+'/v1beta/models。');
