@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light"><meta name="theme-color" content="#f5f7fb"><meta name="description" content="个人使用的墨墨 API 聊天与 Gemini 图片生成工具"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><title>AI Studio · 墨墨 API · v15.3</title>
+<meta name="color-scheme" content="light"><meta name="theme-color" content="#f5f7fb"><meta name="description" content="个人使用的墨墨 API 聊天与 Gemini 图片生成工具"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><title>AI Studio · 墨墨 API · v15.4</title>
 <style>
 :root{color-scheme:light;--bg:#f5f7fb;--panel:#fff;--panel2:#f1f4fa;--text:#202638;--muted:#687386;--accent:#5b75d6;--accent2:#7893e8;--border:#e1e6ef;--good:#21865f}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
@@ -182,7 +182,7 @@ button.msg-copy.copied{background:#e9f7ef!important;color:#21865f!important;bord
 @media(max-width:560px){.session-drawer{padding:13px}.session-data-tools{padding-bottom:8px}.session-item{gap:4px;padding:7px}.session-mini{padding:6px!important;font-size:11px!important}}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><button class="secondary session-open-btn" id="sessionOpenBtn" type="button">☰ 会话</button><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">资料管理 v15.3</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><button class="secondary session-open-btn" id="sessionOpenBtn" type="button">☰ 会话</button><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">资料管理 v15.4</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <div class="session-backdrop" id="sessionBackdrop"></div><aside class="session-drawer" id="sessionDrawer" aria-label="会话与资料管理"><div class="session-drawer-head"><strong>会话与资料管理</strong><button class="secondary" id="sessionCloseBtn" type="button">关闭</button></div><button id="newSessionBtn" type="button" class="session-new-btn">＋ 新建会话</button><input id="sessionSearch" class="session-search" type="search" placeholder="搜索所有会话和消息…" autocomplete="off"><div class="session-tools"><button class="secondary" id="archivedViewBtn" type="button">查看归档</button><button class="secondary" id="favoritesViewBtn" type="button">收藏夹</button></div><div id="sessionList" class="session-list"></div><div id="favoriteList" class="favorite-list" hidden></div><div class="session-data-tools"><div class="export-controls"><select id="sessionExportFormat" aria-label="导出格式"><option value="md">Markdown</option><option value="txt">TXT 文本</option></select><button class="secondary" id="exportCurrentBtn" type="button">导出当前</button><button class="secondary" id="exportAllBtn" type="button">导出全部</button></div><div class="backup-controls"><button class="secondary" id="backupDataBtn" type="button">备份所有资料</button><button class="secondary" id="restoreDataBtn" type="button">恢复资料备份</button><input id="restoreDataFile" type="file" accept=".json,application/json" hidden></div></div><div class="session-drawer-foot">记录保存在当前浏览器。资料备份不包含 API Key；图片文件与生成图片不会写入备份，请单独下载保存。</div></aside><section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -225,7 +225,7 @@ button.msg-copy.copied{background:#e9f7ef!important;color:#21865f!important;bord
 <div class="attach-row">
 <button class="secondary attach-main" id="attachBtn" type="button">＋ 上传图片</button><input id="imageFiles" type="file" accept="image/*" multiple hidden>
 <button class="secondary file-main" id="fileBtn" type="button">＋ 上传文件</button><input id="documentFiles" type="file" accept=".pdf,.txt,.md,.csv,.json,.xml,.html,.log,.yaml,.yml,.js,.ts,.tsx,.jsx,.py,.java,.c,.cpp,.h,.css,.sql,.sh,.toml,.ini,text/*,application/pdf" multiple hidden>
-<span class="hint">图片用于修改；PDF 和文本文件可让 AI 阅读分析。</span>
+<span class="hint">图片可用于文字模型识图，也可用于 Gemini 图片修改；PDF 和文本文件可让 AI 阅读分析。</span>
 </div><div class="attach-preview" id="attachPreview"></div><form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
 <div class="note" id="saveNote">设置保存在此网站的浏览器存储中。API Key 默认不保存；只有开启“记住 API Key”才会保存在本机浏览器。请勿在公共设备使用。浏览器跨域请求是否可用取决于服务商的 CORS 设置。</div></section>
 </main>
@@ -814,9 +814,12 @@ $('imageFiles').addEventListener('change',async()=>{
  }
  renderPendingImages();
  if(added){
-  if(!['v1beta','v1'].includes($('apiMode').value)){
-   $('apiMode').value='v1beta';
-   $('apiMode').dispatchEvent(new Event('change',{bubbles:true}));
+  const mode=$('apiMode').value;
+  if(mode==='images'){
+   $('apiMode').value='v1beta';$('apiMode').dispatchEvent(new Event('change',{bubbles:true}));
+   status('已添加图片。已切换到 Gemini 模式，可输入图片修改要求。');
+  }else if(mode==='chat'){
+   status('已添加 '+state.pendingImages.length+' 张图片。当前文字模型需支持视觉输入，输入问题后即可识图。');
   }else{
    status('已添加 '+state.pendingImages.length+' 张图片。输入修改要求后发送即可。');
   }
@@ -828,7 +831,7 @@ function formatFileSize(bytes){return bytes<1024*1024?(bytes/1024).toFixed(0)+' 
 function fileExt(name){return (name.split('.').pop()||'').toLowerCase()}
 function renderPendingImages(){
  const box=$('attachPreview');box.replaceChildren();
- if(state.pendingImages.length){const label=document.createElement('div');label.className='attach-caption';label.textContent='本次修改使用的图片（'+state.pendingImages.length+'/4）';box.append(label)}
+ if(state.pendingImages.length){const label=document.createElement('div');label.className='attach-caption';label.textContent=($('apiMode').value==='chat'?'本次识图附件（':'本次修改使用的图片（')+state.pendingImages.length+'/4）';box.append(label)}
  state.pendingImages.forEach((item,index)=>{
   const wrap=document.createElement('div');wrap.className='attach-thumb';
   const img=document.createElement('img');img.src=item.dataUrl;img.alt=item.name;
@@ -1142,7 +1145,7 @@ $('chatForm').addEventListener('submit',async e=>{
  const mode=$('apiMode').value;
  const referenceImages=state.pendingImages.slice();
  const pendingFiles=state.pendingFiles.slice();
- if((referenceImages.length||pendingFiles.length)&&!['v1beta','v1'].includes(mode)){status('请切换到 Gemini 原生模式处理图片或文件。');return}
+ if(pendingFiles.length&&!['v1beta','v1'].includes(mode)){status('PDF 和文本文件目前请切换到 Gemini 原生模式处理；图片则可以在支持视觉输入的文字模型中直接识别。');return}
  if(pendingFiles.length&&!referenceImages.length){
   addMessage('user','[文件提问] '+text+'（附件：'+pendingFiles.map(file=>file.name).join('、')+'）');
   $('prompt').value='';$('sendBtn').disabled=true;
@@ -1174,11 +1177,12 @@ $('chatForm').addEventListener('submit',async e=>{
   }finally{$('sendBtn').disabled=false;$('prompt').focus()}
   return;
  }
- if(referenceImages.length){status('请切换到 Gemini 模式发送参考图。');return}
  endpoint=base()+'/chat/completions';
  const outgoing=[];const system=$('systemPrompt').value.trim();if(system)outgoing.push({role:'system',content:system});
- outgoing.push(...state.messages,{role:'user',content:text});
- addMessage('user',text);$('prompt').value='';$('sendBtn').disabled=true;
+ const historyUserText=referenceImages.length?text+'\\n[本条消息附带 '+referenceImages.length+' 张图片；图片文件不保存到文字历史，后续追问请重新上传]':text;
+ const userContent=referenceImages.length?[{type:'text',text},...referenceImages.map(img=>({type:'image_url',image_url:{url:img.dataUrl}}))]:text;
+ outgoing.push(...state.messages,{role:'user',content:userContent});
+ addMessage('user',historyUserText);$('prompt').value='';$('sendBtn').disabled=true;
  const tracker=beginProgress('正在等待 AI 回复');
  const answerEl=addMessage('assistant','');let answer='';
  try{
@@ -1209,7 +1213,9 @@ $('chatForm').addEventListener('submit',async e=>{
    }
   }
   if(!answer)throw new Error('请求已发出但没有收到文本。若错误为 503 No available channel，通常需要服务商检查模型渠道/分组；网页无法自行修复服务端渠道。');
-  state.messages.push({role:'user',content:text},{role:'assistant',content:answer});saveHistory();finishProgress(tracker,true,'已接收完整回复，共 '+answer.length.toLocaleString()+' 个字符。');status('回答完成。当前模型：'+model);
+  state.messages.push({role:'user',content:historyUserText},{role:'assistant',content:answer});saveHistory();
+  if(referenceImages.length)clearPendingImages();
+  finishProgress(tracker,true,'已接收完整回复，共 '+answer.length.toLocaleString()+' 个字符。');status('回答完成。当前模型：'+model);
  }catch(err){answerEl.textContent='调用失败：'+explainApiError(err.message);finishProgress(tracker,false,explainApiError(err.message));status('调用失败：'+explainApiError(err.message))}
  finally{$('sendBtn').disabled=false;$('prompt').focus()}
 });
