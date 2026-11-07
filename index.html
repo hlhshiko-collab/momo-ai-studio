@@ -1179,7 +1179,7 @@ $('chatForm').addEventListener('submit',async e=>{
  }
  endpoint=base()+'/chat/completions';
  const outgoing=[];const system=$('systemPrompt').value.trim();if(system)outgoing.push({role:'system',content:system});
- const historyUserText=referenceImages.length?text+'\\n[本条消息附带 '+referenceImages.length+' 张图片；图片文件不保存到文字历史，后续追问请重新上传]':text;
+ const historyUserText=referenceImages.length?text+'\n[本条消息附带 '+referenceImages.length+' 张图片；图片文件不保存到文字历史，后续追问请重新上传]':text;
  const userContent=referenceImages.length?[{type:'text',text},...referenceImages.map(img=>({type:'image_url',image_url:{url:img.dataUrl}}))]:text;
  outgoing.push(...state.messages,{role:'user',content:userContent});
  addMessage('user',historyUserText);$('prompt').value='';$('sendBtn').disabled=true;
