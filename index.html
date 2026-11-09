@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light"><meta name="theme-color" content="#f5f7fb"><meta name="description" content="个人使用的墨墨 API 聊天与 Gemini 图片生成工具"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><title>AI Studio · 墨墨 API · v15.4</title>
+<meta name="color-scheme" content="light"><meta name="theme-color" content="#f5f7fb"><meta name="description" content="个人使用的墨墨 API 聊天与 Gemini 图片生成工具"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><title>AI Studio · 墨墨 API · v15.5</title>
 <style>
 :root{color-scheme:light;--bg:#f5f7fb;--panel:#fff;--panel2:#f1f4fa;--text:#202638;--muted:#687386;--accent:#5b75d6;--accent2:#7893e8;--border:#e1e6ef;--good:#21865f}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
@@ -180,9 +180,33 @@ button.msg-copy:active{filter:brightness(.97)}
 button.msg-copy.copied{background:#e9f7ef!important;color:#21865f!important;border-color:#cbead8!important}
 @media(max-width:560px){button.msg-copy{padding:8px 12px!important;font-size:12px!important;min-height:38px!important}}
 @media(max-width:560px){.session-drawer{padding:13px}.session-data-tools{padding-bottom:8px}.session-item{gap:4px;padding:7px}.session-mini{padding:6px!important;font-size:11px!important}}
+/* v15.5：模式提示、会话识别与移动端交互优化 */
+.chat-context{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:13px;background:linear-gradient(135deg,#f8faff,#fff)}
+.context-mode{display:inline-flex;align-items:center;min-height:26px;padding:3px 9px;border-radius:8px;background:#edf1ff;color:#455fb8;font-size:11px;font-weight:750}
+.context-model{min-width:0;color:#4e5b72;font-size:12px;font-weight:650;overflow-wrap:anywhere}
+.context-state{margin-left:auto;color:var(--good);font-size:11px;font-weight:700}
+.context-state.busy{color:#a46b1d}
+.session-mode-meta{display:block;margin-top:3px;color:#5267b3;font-size:10px;font-weight:650;overflow-wrap:anywhere}
+.msg-body{line-height:1.78;word-break:break-word}
+.msg.assistant .msg-body{font-size:15px}
+.msg-actions{gap:8px}
+.attach-main,.file-main{min-height:42px}
+.attach-preview:empty{display:none}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #8fa4ed66;outline-offset:2px}
+.request-busy .settings-content,.request-busy .attach-row,.request-busy .attach-preview{pointer-events:none;opacity:.62}
+.request-busy .session-list,.request-busy .session-tools,.request-busy #newSessionBtn{opacity:.55}
+.request-busy #sendBtn{background:#7f8ba8;box-shadow:none}
+@media(max-width:620px){
+ .chat-context{padding:9px 10px;gap:6px}
+ .context-model{font-size:11px;max-width:100%}
+ .context-state{font-size:10px}
+ .session-mode-meta{font-size:10px}
+ .msg-body{line-height:1.72}
+ .attach-main,.file-main{min-height:40px}
+}
 </style></head>
 <body><main class="app">
-<header><div class="brandline"><button class="secondary session-open-btn" id="sessionOpenBtn" type="button">☰ 会话</button><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">资料管理 v15.4</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
+<header><div class="brandline"><button class="secondary session-open-btn" id="sessionOpenBtn" type="button">☰ 会话</button><div class="brandicon">✦</div><div><h1>AI Chat</h1><div class="sub">文字对话 · Gemini 图片生成与局部修改 <span class="build-version">资料管理 v15.5</span></div></div></div><button class="secondary" id="clearBtn">清空对话</button></header>
 <div class="session-backdrop" id="sessionBackdrop"></div><aside class="session-drawer" id="sessionDrawer" aria-label="会话与资料管理"><div class="session-drawer-head"><strong>会话与资料管理</strong><button class="secondary" id="sessionCloseBtn" type="button">关闭</button></div><button id="newSessionBtn" type="button" class="session-new-btn">＋ 新建会话</button><input id="sessionSearch" class="session-search" type="search" placeholder="搜索所有会话和消息…" autocomplete="off"><div class="session-tools"><button class="secondary" id="archivedViewBtn" type="button">查看归档</button><button class="secondary" id="favoritesViewBtn" type="button">收藏夹</button></div><div id="sessionList" class="session-list"></div><div id="favoriteList" class="favorite-list" hidden></div><div class="session-data-tools"><div class="export-controls"><select id="sessionExportFormat" aria-label="导出格式"><option value="md">Markdown</option><option value="txt">TXT 文本</option></select><button class="secondary" id="exportCurrentBtn" type="button">导出当前</button><button class="secondary" id="exportAllBtn" type="button">导出全部</button></div><div class="backup-controls"><button class="secondary" id="backupDataBtn" type="button">备份所有资料</button><button class="secondary" id="restoreDataBtn" type="button">恢复资料备份</button><input id="restoreDataFile" type="file" accept=".json,application/json" hidden></div></div><div class="session-drawer-foot">记录保存在当前浏览器。资料备份不包含 API Key；图片文件与生成图片不会写入备份，请单独下载保存。</div></aside><section class="panel settings-panel">
 <details class="settings-details" id="settingsDetails" open>
 <summary><span class="settings-summary-title">连接与模型设置</span><span class="settings-summary-hint">API 地址、密钥、模型与生成参数</span><span class="settings-chevron">⌄</span></summary>
@@ -221,11 +245,11 @@ button.msg-copy.copied{background:#e9f7ef!important;color:#21865f!important;bord
 </div>
 </details>
 </section>
-<section class="panel chat"><div class="section-title">对话与生成结果</div><div class="messages" id="messages"><div class="welcome"><strong>你好，需要我帮你做什么？</strong>获取模型列表并选择模型后即可开始聊天。</div></div>
+<section class="panel chat"><div class="section-title">对话与生成结果</div><div class="chat-context" id="chatContext" aria-live="polite"><span class="context-mode" id="contextMode">文字聊天</span><span class="context-model" id="contextModel">尚未选择模型</span><span class="context-state" id="contextState">就绪</span></div><div class="messages" id="messages"><div class="welcome"><strong>你好，需要我帮你做什么？</strong>获取模型列表并选择模型后即可开始聊天。</div></div>
 <div class="attach-row">
-<button class="secondary attach-main" id="attachBtn" type="button">＋ 上传图片</button><input id="imageFiles" type="file" accept="image/*" multiple hidden>
+<button class="secondary attach-main" id="attachBtn" type="button">＋ 上传图片识别</button><input id="imageFiles" type="file" accept="image/*" multiple hidden>
 <button class="secondary file-main" id="fileBtn" type="button">＋ 上传文件</button><input id="documentFiles" type="file" accept=".pdf,.txt,.md,.csv,.json,.xml,.html,.log,.yaml,.yml,.js,.ts,.tsx,.jsx,.py,.java,.c,.cpp,.h,.css,.sql,.sh,.toml,.ini,text/*,application/pdf" multiple hidden>
-<span class="hint">图片可用于文字模型识图，也可用于 Gemini 图片修改；PDF 和文本文件可让 AI 阅读分析。</span>
+<span class="hint" id="attachHint">文字聊天模式可上传图片识别；PDF 和文本文件请使用 Gemini 模式。</span>
 </div><div class="attach-preview" id="attachPreview"></div><form class="composer" id="chatForm"><textarea id="prompt" placeholder="输入消息…（Enter 发送，Shift + Enter 换行）" required></textarea><button id="sendBtn" type="submit">发送</button></form>
 <div class="note" id="saveNote">设置保存在此网站的浏览器存储中。API Key 默认不保存；只有开启“记住 API Key”才会保存在本机浏览器。请勿在公共设备使用。浏览器跨域请求是否可用取决于服务商的 CORS 设置。</div></section>
 </main>
@@ -237,6 +261,7 @@ button.msg-copy.copied{background:#e9f7ef!important;color:#21865f!important;bord
 <script>
 const $=id=>document.getElementById(id);
 const state={messages:[],modelIds:[],pendingImages:[],pendingFiles:[]};
+let requestInProgress=false;
 
 // 自动保存页面设置和最近对话；API Key 默认不保存，勾选后才写入本机浏览器存储。
 const SAVE_KEY='momo_api_chat_v5_settings';
@@ -311,6 +336,7 @@ function applySessionConfig(session){
  const saved=config.modelChoices?.[mode]||readSavedSettings().modelsByMode?.[mode];
  $('manualModel').value=saved?.manual&&saved.id?saved.id:'';
  $('modelSelect').replaceChildren(new Option('正在恢复此会话的模型…',''));
+ refreshModeGuidance();updateChatContext();
  return mode;
 }
 function makeSession(title='新会话'){return{id:'s_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),title,createdAt:Date.now(),updatedAt:Date.now(),messages:[],config:createSessionConfigSnapshot()}}
@@ -357,7 +383,10 @@ function renderSessionList(){
   const select=document.createElement('button');select.type='button';select.className='session-select';
   const title=document.createElement('span');title.textContent=(session.title||'新会话')+(session.archivedAt?' · 已归档':'');
   const meta=document.createElement('span');meta.className='session-meta';meta.textContent=(session.messages||[]).length+' 条消息 · '+new Date(session.updatedAt||Date.now()).toLocaleDateString('zh-CN');
-  select.append(title,meta);select.addEventListener('click',()=>switchSession(session.id));row.append(select);
+  const sessionMode=session.config?.apiMode||'chat',sessionChoice=session.config?.modelChoices?.[sessionMode];
+  const modeMeta=document.createElement('span');modeMeta.className='session-mode-meta';
+  modeMeta.textContent=modeDisplayName(sessionMode)+' · '+(sessionChoice?.id||'未选择模型');
+  select.append(title,meta,modeMeta);select.addEventListener('click',()=>switchSession(session.id));row.append(select);
   const rename=document.createElement('button');rename.type='button';rename.className='secondary session-mini';rename.textContent='改名';rename.addEventListener('click',()=>renameSession(session.id));
   const archive=document.createElement('button');archive.type='button';archive.className='secondary session-mini';archive.textContent=session.archivedAt?'恢复':'归档';archive.addEventListener('click',()=>archiveSession(session.id));
   const remove=document.createElement('button');remove.type='button';remove.className='secondary session-mini';remove.textContent='删';remove.addEventListener('click',()=>deleteSession(session.id));
@@ -397,12 +426,14 @@ function renderSessionMessages(session){
  items.forEach(item=>addMessage(item.role,item.content,item));
 }
 function switchSession(id){
+ if(requestInProgress){status('当前对话正在生成，请等本次请求结束后再切换会话。');return}
  if(id===activeSessionId)return;saveHistory();const next=sessions.find(x=>x.id===id);if(!next)return;
  activeSessionId=id;state.messages=(next.messages||[]).map(x=>({role:x.role,content:x.content}));
  applySessionConfig(next);renderSessionMessages(next);activateModeModels($('apiMode').value,{autoFetch:true,quiet:true});
  persistSessions();renderSessionList();document.body.classList.remove('sessions-open');
 }
 function createSession(){
+ if(requestInProgress){status('当前对话正在生成，完成后再新建会话。');return}
  saveHistory();const session=makeSession();sessions.unshift(session);activeSessionId=session.id;state.messages=[];
  $('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const strong=document.createElement('strong');strong.textContent='新的会话';
  w.append(strong,document.createTextNode('可以开始聊天、生成或修改图片。'));$('messages').append(w);
@@ -415,6 +446,7 @@ function renameSession(id){
  session.title=trimmed.slice(0,50);session.updatedAt=Date.now();persistSessions();renderSessionList();
 }
 function deleteSession(id){
+ if(requestInProgress){status('当前对话正在生成，暂不能删除会话。');return}
  const session=sessions.find(x=>x.id===id);if(!session)return;
  if(!confirm('确定删除会话「'+(session.title||'新会话')+'」吗？此操作不可撤销。'))return;
  sessions=sessions.filter(x=>x.id!==id);favorites=favorites.filter(x=>x.sessionId!==id);sessionDomCache.delete(id);
@@ -427,6 +459,7 @@ function deleteSession(id){
  persistSessions();persistFavorites();renderFavoriteList();renderSessionList();
 }
 function archiveSession(id){
+ if(requestInProgress){status('当前对话正在生成，暂不能归档或恢复会话。');return}
  saveHistory();const session=sessions.find(x=>x.id===id);if(!session)return;
  if(session.archivedAt){delete session.archivedAt;}else{session.archivedAt=Date.now();}
  if(activeSessionId===id&&session.archivedAt){
@@ -576,8 +609,8 @@ if(safeStoreGet(SAVE_KEY))$('settingsDetails').open=false;
 restoreHistory();
 CONFIG_FIELDS.forEach(id=>{const el=$(id);if(el)el.addEventListener('change',saveSettings);if(el&&['baseUrl','manualModel','temperature','maxTokens','systemPrompt'].includes(id))el.addEventListener('input',saveSettings)});
 SESSION_CONFIG_FIELDS.filter(id=>id!=='apiMode').forEach(id=>{const el=$(id);if(el){el.addEventListener('change',()=>saveActiveSessionConfig());if(['temperature','maxTokens','systemPrompt'].includes(id))el.addEventListener('input',()=>saveActiveSessionConfig())}});
-$('modelSelect').addEventListener('change',()=>rememberModelForMode());
-$('manualModel').addEventListener('input',()=>rememberModelForMode());
+$('modelSelect').addEventListener('change',()=>{rememberModelForMode();updateChatContext()});
+$('manualModel').addEventListener('input',()=>{rememberModelForMode();updateChatContext()});
 $('rememberKey').addEventListener('change',saveSettings);
 $('apiKey').addEventListener('input',saveSettings);
 window.addEventListener('beforeunload',()=>saveActiveSessionConfig({captureModel:true,persist:true}));
@@ -686,6 +719,35 @@ function selectedModel(){
  const manual=$('manualModel').value.trim();
  return manual||$('modelSelect').value.trim();
 }
+function modeDisplayName(mode=$('apiMode').value){
+ return ({chat:'文字聊天',v1beta:'Gemini 原生',v1:'Gemini 兼容',images:'OpenAI 图片接口'})[mode]||'未知模式';
+}
+function updateChatContext(){
+ const mode=$('apiMode')?.value||'chat',model=selectedModel()||'尚未选择模型';
+ const modeEl=$('contextMode'),modelEl=$('contextModel'),stateEl=$('contextState');
+ if(modeEl)modeEl.textContent=modeDisplayName(mode);
+ if(modelEl)modelEl.textContent=model;
+ if(stateEl){stateEl.textContent=requestInProgress?'正在请求…':'就绪';stateEl.classList.toggle('busy',requestInProgress)}
+}
+function refreshModeGuidance(){
+ const mode=$('apiMode')?.value||'chat',button=$('attachBtn'),hint=$('attachHint');
+ if(!button||!hint)return;
+ if(mode==='chat'){
+  button.textContent='＋ 上传图片识别';
+  hint.textContent='文字聊天模式：图片将与问题一起发送，需选择支持视觉输入的模型。PDF 和文本文件请使用 Gemini 模式。';
+ }else if(mode==='v1beta'||mode==='v1'){
+  button.textContent='＋ 上传参考图';
+  hint.textContent='Gemini 模式：上传参考图可进行识图、图片修改或生成；PDF 和文本文件也可一起分析。';
+ }else{
+  button.textContent='＋ 上传图片';
+  hint.textContent='OpenAI 图片接口主要用于图片生成；上传参考图会自动切换到 Gemini 模式。';
+ }
+}
+function setRequestBusy(value){
+ requestInProgress=!!value;
+ document.body.classList.toggle('request-busy',requestInProgress);
+ updateChatContext();
+}
 function modelListUrl(mode=$('apiMode').value){
  const isGemini=(mode==='v1beta'||mode==='v1');
  return isGemini?originBase()+'/v1beta/models':base()+'/models';
@@ -710,6 +772,7 @@ function populateModelOptions(mode, ids){
   sel.add(new Option('该模式暂无可用模型列表',''));
   state.modelIds=[];
   $('manualModel').value=saved?.manual&&saved.id?saved.id:'';
+  updateChatContext();refreshModeGuidance();
   return false;
  }
  state.modelIds=ids.slice();
@@ -718,7 +781,7 @@ function populateModelOptions(mode, ids){
  $('manualModel').value=saved?.manual&&saved.id?saved.id:'';
  if(saved?.manual&&saved.id){sel.value=ids.includes(saved.id)?saved.id:'';}
  else sel.value=(saved?.id&&ids.includes(saved.id))?saved.id:ids[0];
- rememberModelForMode(mode);
+ rememberModelForMode(mode);updateChatContext();refreshModeGuidance();
  return true;
 }
 async function fetchModelList({quiet=false}={}){
@@ -1139,7 +1202,7 @@ async function generateImage(prompt, model, referenceImages=[], files=[], tracke
  status('图片生成成功：'+model+'，收到 '+count+' 张图片。');
 }
 $('chatForm').addEventListener('submit',async e=>{
- e.preventDefault();const text=$('prompt').value.trim(),model=selectedModel();if(!text)return;
+ e.preventDefault();if(requestInProgress){status('上一条请求仍在进行，请等待完成。');return}const text=$('prompt').value.trim(),model=selectedModel();if(!text)return;
  if(!model){status('请先获取模型列表并选择模型，或手动填写模型 ID。');return}
  let h,endpoint;try{h=headers()}catch(err){status(err.message);return}
  const mode=$('apiMode').value;
@@ -1147,6 +1210,7 @@ $('chatForm').addEventListener('submit',async e=>{
  const pendingFiles=state.pendingFiles.slice();
  if(pendingFiles.length&&!['v1beta','v1'].includes(mode)){status('PDF 和文本文件目前请切换到 Gemini 原生模式处理；图片则可以在支持视觉输入的文字模型中直接识别。');return}
  if(pendingFiles.length&&!referenceImages.length){
+  setRequestBusy(true);
   addMessage('user','[文件提问] '+text+'（附件：'+pendingFiles.map(file=>file.name).join('、')+'）');
   $('prompt').value='';$('sendBtn').disabled=true;
   const tracker=beginProgress('正在分析附件');
@@ -1161,10 +1225,11 @@ $('chatForm').addEventListener('submit',async e=>{
    answerEl.textContent='文件分析失败：'+explainApiError(err.message);
    finishProgress(tracker,false,explainApiError(err.message));
    status('文件分析失败：'+explainApiError(err.message));
-  }finally{$('sendBtn').disabled=false;$('prompt').focus()}
+  }finally{setRequestBusy(false);$('sendBtn').disabled=false;$('prompt').focus()}
   return;
  }
  if(mode!=='chat'){
+  setRequestBusy(true);
   addMessage('user',(referenceImages.length?'[图片修改] ':'[图片生成] ')+text+(referenceImages.length?'（已附 '+referenceImages.length+' 张原图）':''));$('prompt').value='';$('sendBtn').disabled=true;
   const tracker=beginProgress(referenceImages.length?'正在修改图片':'正在生成图片');
   try{
@@ -1174,10 +1239,11 @@ $('chatForm').addEventListener('submit',async e=>{
   }catch(err){
    finishProgress(tracker,false,explainApiError(err.message));
    addMessage('assistant','图片生成失败：'+explainApiError(err.message));status('图片生成失败：'+explainApiError(err.message));
-  }finally{$('sendBtn').disabled=false;$('prompt').focus()}
+  }finally{setRequestBusy(false);$('sendBtn').disabled=false;$('prompt').focus()}
   return;
  }
  endpoint=base()+'/chat/completions';
+ setRequestBusy(true);
  const outgoing=[];const system=$('systemPrompt').value.trim();if(system)outgoing.push({role:'system',content:system});
  const historyUserText=referenceImages.length?text+'\n[本条消息附带 '+referenceImages.length+' 张图片；图片文件不保存到文字历史，后续追问请重新上传]':text;
  const userContent=referenceImages.length?[{type:'text',text},...referenceImages.map(img=>({type:'image_url',image_url:{url:img.dataUrl}}))]:text;
@@ -1217,9 +1283,9 @@ $('chatForm').addEventListener('submit',async e=>{
   if(referenceImages.length)clearPendingImages();
   finishProgress(tracker,true,'已接收完整回复，共 '+answer.length.toLocaleString()+' 个字符。');status('回答完成。当前模型：'+model);
  }catch(err){answerEl.textContent='调用失败：'+explainApiError(err.message);finishProgress(tracker,false,explainApiError(err.message));status('调用失败：'+explainApiError(err.message))}
- finally{$('sendBtn').disabled=false;$('prompt').focus()}
+ finally{setRequestBusy(false);$('sendBtn').disabled=false;$('prompt').focus()}
 });
-$('clearBtn').onclick=()=>{if(!confirm('清空当前会话的全部对话内容？其他会话不会受影响。'))return;state.messages=[];sessionDomCache.delete(activeSessionId);$('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const title=document.createElement('strong');title.textContent='对话已清空';w.append(title,document.createTextNode('当前会话已清空，可以重新开始。'));$('messages').append(w);const session=sessions.find(x=>x.id===activeSessionId);if(session){session.messages=[];session.title='新会话';session.updatedAt=Date.now()}persistSessions();renderSessionList();status('当前会话已清空，其他会话保持不变。')};
+$('clearBtn').onclick=()=>{if(requestInProgress){status('当前对话正在生成，暂不能清空。');return}if(!confirm('清空当前会话的全部对话内容？其他会话不会受影响。'))return;state.messages=[];sessionDomCache.delete(activeSessionId);$('messages').replaceChildren();const w=document.createElement('div');w.className='welcome';const title=document.createElement('strong');title.textContent='对话已清空';w.append(title,document.createTextNode('当前会话已清空，可以重新开始。'));$('messages').append(w);const session=sessions.find(x=>x.id===activeSessionId);if(session){session.messages=[];session.title='新会话';session.updatedAt=Date.now()}persistSessions();renderSessionList();status('当前会话已清空，其他会话保持不变。')};
 
 
 // 对 content://downloads/... 这种本地打开方式，提供独立的 JSON 备份/恢复，不依赖浏览器存储是否保留。
@@ -1258,7 +1324,7 @@ $('importSettingsFile').addEventListener('change',async()=>{
 });
 
 $('apiMode').addEventListener('change',()=>{
- const mode=$('apiMode').value;saveSettings();saveActiveSessionConfig({captureModel:false});
+ const mode=$('apiMode').value;saveSettings();saveActiveSessionConfig({captureModel:false});refreshModeGuidance();updateChatContext();
  if(mode==='chat')status('文字聊天：POST '+base()+'/chat/completions；模型列表：GET '+base()+'/models');
  else if(mode==='images')status('OpenAI 图片接口：POST '+base()+'/images/generations。New API 文档参数主要对应 DALL·E / GPT Image，不建议用来调用 Nano Banana。');
  else status('Gemini 图片生成：POST '+originBase()+'/'+mode+'/models/{model}:generateContent；Gemini 模型列表使用 GET '+originBase()+'/v1beta/models。');
@@ -1268,6 +1334,7 @@ $('apiMode').addEventListener('change',()=>{
 $('prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('chatForm').requestSubmit()}});
 if(safeStoreGet(SAVE_KEY))status('已恢复上次设置。模型列表已缓存时会自动显示；切换模式无需重复手动获取。');else status('首次使用：填写 API 地址和 Key，再获取一次模型列表；之后会自动缓存。');
 activateModeModels($('apiMode').value,{autoFetch:!!$('apiKey').value.trim(),quiet:true});
+refreshModeGuidance();updateChatContext();
 </script><script>
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   let reloadedForWorkerUpdate = false;
